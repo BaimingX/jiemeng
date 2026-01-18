@@ -1,18 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Plus } from 'lucide-react';
 import { Language } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 interface InputAreaProps {
   onSend: (text: string) => void;
   disabled: boolean;
   language: Language;
+  isLoggedIn: boolean;
+  onOpenLogin?: () => void;
 }
 
-const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled, language }) => {
+const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled, language, isLoggedIn, onOpenLogin }) => {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const navigate = useNavigate();
 
-  const placeholder = language === 'en' ? "Record your dream..." : "记录你的梦境...";
+  const placeholder = isLoggedIn
+    ? (language === 'en' ? "Record your dream..." : "记录你的梦境...")
+    : (language === 'en' ? "Please log in to record..." : "请先登录以记录梦境...");
 
   const handleSend = () => {
     if (text.trim() && !disabled) {
@@ -56,6 +62,8 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled, language }) => 
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
+            onClick={() => !isLoggedIn && onOpenLogin?.()}
+            readOnly={!isLoggedIn}
             disabled={disabled}
             placeholder={placeholder}
             className="w-full bg-transparent resize-none outline-none text-base max-h-32 py-1"
@@ -65,7 +73,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled, language }) => 
 
         {/* Right Actions */}
         {text.length > 0 ? (
-          <button 
+          <button
             onClick={handleSend}
             disabled={disabled}
             className="mb-2 p-2 bg-blue-500 rounded-full text-white shadow-md hover:bg-blue-600 transition-colors disabled:opacity-50"

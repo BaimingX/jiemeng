@@ -1,24 +1,3 @@
-export enum Sender {
-  USER = 'user',
-  AI = 'ai',
-  SYSTEM = 'system'
-}
-
-export enum MessageType {
-  TEXT = 'text',
-  LOADING = 'loading',
-  IMAGE = 'image'
-}
-
-export interface Message {
-  id: string;
-  sender: Sender;
-  text: string;
-  type: MessageType;
-  timestamp: Date;
-  imageUrl?: string;
-}
-
 export enum AnalysisStyleId {
   // Rational (no sub-styles)
   RATIONAL = 'RATIONAL',
@@ -44,7 +23,6 @@ export enum AnalysisStyleId {
   UNSELECTED = 'UNSELECTED'
 }
 
-// Category type for first-level selection
 export type StyleCategory = 'RATIONAL' | 'PSYCHOLOGY' | 'FOLK' | 'CREATIVE';
 
 export enum AppStage {
@@ -62,10 +40,30 @@ export enum AppStage {
   SHOWING_CARD = 'showing_card'    // Displaying the generated card
 }
 
+export type Language = 'en' | 'zh';
+
+export enum Sender {
+  USER = 'user',
+  AI = 'ai'
+}
+
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  LOADING = 'loading'
+}
+
+export interface Message {
+  id: string;
+  sender: Sender;
+  text: string;
+  type: MessageType;
+  timestamp: Date;
+  imageUrl?: string;
+}
+
 export interface DreamSession {
   dreamContent: string;
   style: AnalysisStyleId;
   stage: AppStage;
 }
-
-export type Language = 'en' | 'zh';

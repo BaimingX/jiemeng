@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Brain, Sparkles, Feather, Lightbulb, ChevronLeft, Book, Moon, Star, Leaf, Cross } from 'lucide-react';
+import { Brain, Sparkles, Feather, Lightbulb, ChevronLeft, ChevronRight, Book, Moon, Star, Leaf, Cross } from 'lucide-react';
 import { Language, AnalysisStyleId, StyleCategory } from '../types';
 
 interface StyleSelectorProps {
-  onSelect: (style: AnalysisStyleId) => void;
+  onSelect: (style: AnalysisStyleId, label?: string) => void; // Updated signature to allow passing label back if needed
   language: Language;
+  darkMode?: boolean;
 }
 
 interface CategoryOption {
@@ -152,12 +153,11 @@ const FOLK_SUB_STYLES: SubStyleOption[] = [
   }
 ];
 
-const StyleSelector: React.FC<StyleSelectorProps> = ({ onSelect, language }) => {
-  const [selectedCategory, setSelectedCategory] = useState<StyleCategory | null>(null);
+const StyleSelector: React.FC<StyleSelectorProps & { selectedStyleId?: AnalysisStyleId | null; selectedCategory: StyleCategory | null; onSelectCategory: (c: StyleCategory | null) => void }> = ({ onSelect, language, selectedStyleId, selectedCategory, onSelectCategory }) => {
 
   const handleCategoryClick = (category: CategoryOption) => {
     if (category.hasSubStyles) {
-      setSelectedCategory(category.id);
+      onSelectCategory(category.id);
     } else {
       // Direct selection for categories without sub-styles
       if (category.id === 'RATIONAL') {
@@ -170,10 +170,6 @@ const StyleSelector: React.FC<StyleSelectorProps> = ({ onSelect, language }) => 
 
   const handleSubStyleClick = (style: AnalysisStyleId) => {
     onSelect(style);
-  };
-
-  const handleBack = () => {
-    setSelectedCategory(null);
   };
 
   // Get sub-styles based on selected category
@@ -189,48 +185,40 @@ const StyleSelector: React.FC<StyleSelectorProps> = ({ onSelect, language }) => 
   // Render sub-styles view
   if (selectedCategory) {
     const subStyles = getSubStyles();
-    const categoryLabel = selectedCategory === 'PSYCHOLOGY'
-      ? (language === 'en' ? 'Psychology' : '心理视角')
-      : (language === 'en' ? 'Cultural Traditions' : '传统解梦');
 
     return (
-      <div className="w-full max-w-[90%] md:max-w-[75%] ml-4 mt-2 mb-4 animate-fade-in-up">
-        {/* Back button */}
-        <button
-          onClick={handleBack}
-          className="flex items-center text-gray-500 hover:text-gray-700 mb-3 text-sm"
-        >
-          <ChevronLeft size={18} />
-          <span>{language === 'en' ? 'Back' : '返回'}</span>
-        </button>
-
-        {/* Category title */}
-        <div className="text-sm font-medium text-gray-600 mb-2">
-          {language === 'en' ? `Choose ${categoryLabel} style:` : `选择${categoryLabel}风格：`}
-        </div>
-
-        {/* Sub-style options */}
-        <div className="grid grid-cols-1 gap-2">
-          {subStyles.map((option, index) => (
-            <button
-              key={option.id}
-              onClick={() => handleSubStyleClick(option.id)}
-              className="flex items-center p-3 rounded-xl border text-left transition-all duration-200 hover:shadow-md active:scale-[0.98] bg-white border-gray-100 hover:border-gray-200"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className={`p-2 rounded-lg mr-3 ${option.color}`}>
-                {option.icon}
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-[15px] text-gray-900">
-                  {language === 'en' ? option.labelEn : option.labelZh}
+      <div className="w-full animate-fade-in-up">
+        {/* Only Sub-style options Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {subStyles.map((option, index) => {
+            const isSelected = selectedStyleId === option.id;
+            return (
+              <button
+                key={option.id}
+                onClick={() => handleSubStyleClick(option.id)}
+                className={`flex items-center p-4 rounded-xl border text-left transition-all duration-300 group
+                ${isSelected
+                    ? "bg-indigo-600/20 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                    : "bg-[#1A2133] border-white/5 hover:border-white/10 hover:bg-[#202940]"
+                  }
+              `}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className={`p-2.5 rounded-lg mr-4 transition-colors ${isSelected ? "bg-indigo-500/20 text-indigo-300" : "bg-white/5 text-slate-400 group-hover:text-slate-300"}`}>
+                  {option.icon}
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {language === 'en' ? option.descEn : option.descZh}
+                <div className="flex-1">
+                  <div className={`font-medium text-[15px] mb-0.5 ${isSelected ? "text-indigo-200" : "text-slate-200"}`}>
+                    {language === 'en' ? option.labelEn : option.labelZh}
+                  </div>
+                  <div className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">
+                    {language === 'en' ? option.descEn : option.descZh}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+                {isSelected && <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_5px_rgba(129,140,248,0.8)]" />}
+              </button>
+            )
+          })}
         </div>
       </div>
     );
@@ -238,32 +226,44 @@ const StyleSelector: React.FC<StyleSelectorProps> = ({ onSelect, language }) => 
 
   // Render main category view
   return (
-    <div className="w-full max-w-[90%] md:max-w-[75%] ml-4 mt-2 mb-4 grid grid-cols-1 gap-2 animate-fade-in-up">
-      {CATEGORY_OPTIONS.map((option, index) => (
-        <button
-          key={option.id}
-          onClick={() => handleCategoryClick(option)}
-          className="flex items-center p-3 rounded-xl border text-left transition-all duration-200 hover:shadow-md active:scale-[0.98] bg-white border-gray-100 hover:border-gray-200"
-          style={{ animationDelay: `${index * 75}ms` }}
-        >
-          <div className={`p-2 rounded-lg mr-3 ${option.color}`}>
-            {option.icon}
-          </div>
-          <div className="flex-1">
-            <div className="font-semibold text-[15px] text-gray-900">
-              {language === 'en' ? option.labelEn : option.labelZh}
+    <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up">
+      {CATEGORY_OPTIONS.map((option, index) => {
+        let isActive = false;
+        if (selectedStyleId === 'RATIONAL' && option.id === 'RATIONAL') isActive = true;
+        else if (selectedStyleId === 'CREATIVE' && option.id === 'CREATIVE') isActive = true;
+
+        return (
+          <button
+            key={option.id}
+            onClick={() => handleCategoryClick(option)}
+            className={`flex items-center p-4 rounded-xl border text-left transition-all duration-300 group relative overflow-hidden
+            ${isActive
+                ? "bg-indigo-600/20 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                : "bg-[#1A2133] border-white/5 hover:border-white/10 hover:bg-[#202940]"
+              }
+          `}
+            style={{ animationDelay: `${index * 75}ms` }}
+          >
+            <div className={`p-2.5 rounded-lg mr-4 transition-colors ${isActive ? "bg-indigo-500/20 text-indigo-300" : "bg-white/5 text-slate-400 group-hover:text-slate-300"}`}>
+              {option.icon}
             </div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              {language === 'en' ? option.descEn : option.descZh}
+            <div className="flex-1 z-10 relative">
+              <div className={`font-medium text-[15px] mb-0.5 ${isActive ? "text-indigo-200" : "text-slate-200"}`}>
+                {language === 'en' ? option.labelEn : option.labelZh}
+              </div>
+              <div className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">
+                {language === 'en' ? option.descEn : option.descZh}
+              </div>
             </div>
-          </div>
-          {option.hasSubStyles && (
-            <div className="text-gray-400">
-              <ChevronLeft size={18} className="rotate-180" />
-            </div>
-          )}
-        </button>
-      ))}
+            {option.hasSubStyles && (
+              <div className="text-slate-600 group-hover:text-slate-400 transition-colors">
+                <ChevronRight size={18} />
+              </div>
+            )}
+            {isActive && <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_5px_rgba(129,140,248,0.8)]" />}
+          </button>
+        )
+      })}
     </div>
   );
 };
