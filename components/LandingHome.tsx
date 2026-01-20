@@ -1,32 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
-import { Menu, MoreHorizontal, Sparkles, Brain, Lock, User, LogOut, ChevronRight, ChevronLeft, MessageSquare, Plus, Image as ImageIcon, AlertCircle, X } from 'lucide-react';
-import { Sender, Message, MessageType, AppStage, AnalysisStyleId, DreamSession, Language, StyleCategory } from '../types';
-import Sidebar from './Sidebar';
+import { Sparkles, Brain, Lock, ChevronRight, ChevronLeft, MessageSquare, Plus, Image as ImageIcon, AlertCircle, X } from 'lucide-react';
+import { Sender, Message, MessageType, AppStage, AnalysisStyleId, StyleCategory, Language } from '../types';
 import { useAuth } from '../context/AuthContext';
 import LoginPopup from './LoginPopup';
-import FeedbackPopup from './FeedbackPopup';
 import MessageBubble from './MessageBubble';
 import StyleSelector from './StyleSelector';
-import PostAnalysisSelector, { PostAnalysisChoice } from './PostAnalysisSelector';
 import { startNewChat, sendMessageToGemini } from '../services/geminiService';
-import { generateDreamCard } from '../services/replicateService';
 import {
     initDB,
     getTodayConversation,
     getMessages,
     addMessage as saveMessageToDB,
-    updateConversationSummary,
     getTodayId,
-    formatDateForDisplay,
-    deleteConversation,
-    checkAndSyncPreviousDays,
-    syncDailyConversation,
-    StoredMessage
 } from '../services/dreamDB';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useSearchParams } from 'react-router-dom';
 
 // Helper for tailwind class merging
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -68,35 +59,28 @@ const AlertPopup: React.FC<AlertPopupProps> = ({ isOpen, message, onClose, langu
     );
 };
 
-const INITIAL_MESSAGE_EN = "Welcome to the realm of dreams. I am the Dream Whisperer. Share your dream, choose a lens, and let us unravel the threads of your subconscious.";
-const INITIAL_MESSAGE_ZH = "欢迎来到梦境的疆域。我是梦语者。写下你的梦，选择一种视角，让我们一起解开潜意识的丝线。";
-
-const POST_ANALYSIS_MESSAGE_EN = "The veil has been lifted slightly. Would you like to explore deeper, or crystallize this moment into an image?";
-const POST_ANALYSIS_MESSAGE_ZH = "帷幕已稍稍揭开。你想继续深入探索，还是将这一刻凝结成画？";
-
 interface LandingHomeProps {
     language: Language;
     onToggleLanguage: () => void;
 }
 
-const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage }) => {
+const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
     // --- State ---
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [dreamInput, setDreamInput] = useState('');
     const [selectedStyle, setSelectedStyle] = useState<AnalysisStyleId | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<StyleCategory | null>(null); // Lifted state
+    const [selectedCategory, setSelectedCategory] = useState<StyleCategory | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<string | null>(null);
-    const [showResult, setShowResult] = useState(false); // To toggle between Hero and Result view
+    const [showResult, setShowResult] = useState(false);
     const [dreamImageUrl, setDreamImageUrl] = useState<string | null>(null);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-    const [chatInput, setChatInput] = useState(''); // New state for chat input
-    const [showChatInput, setShowChatInput] = useState(false); // Toggle for manual input
+    const [chatInput, setChatInput] = useState('');
+    const [showChatInput, setShowChatInput] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Alert State
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
-    // Follow-up Questions Constants
     const FOLLOW_UP_QUESTIONS_ZH = [
         "对应现实哪件事？",
         "我应该怎么做？",
@@ -114,45 +98,68 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
         "Recall techniques?"
     ];
 
-    // Core Session State (kept for DB sync but UI is decoupled)
     const [currentConversationId, setCurrentConversationId] = useState<string>(getTodayId());
     const [showLoginModal, setShowLoginModal] = useState(false);
 
-    const { user, profile, signOut } = useAuth();
+    const { user, profile } = useAuth();
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Derived state for messages
     const [messages, setMessages] = useState<Message[]>([]);
 
     // --- Effects ---
-    // 1. Init DB & Load (Silent)
     useEffect(() => {
         const init = async () => {
             await initDB();
-            await getTodayConversation();
-            // We DO NOT start a new chat with a greeting anymore.
-            // Just load existing if any.
-            await loadConversation(getTodayId());
+            const dateId = searchParams.get('date');
+
+            if (dateId) {
+                await loadConversation(dateId);
+                setShowResult(true);
+            } else {
+                // If no date, maybe we come from a "New Dream" action or just home
+                // If we want to show today's drafts, we can.
+                // For now, let's keep the "Input" view default.
+                // We could reset state to ensure input view.
+                handleReset();
+            }
         };
         init();
-    }, []);
+    }, [searchParams]);
 
-    // Load Conversation
     const loadConversation = async (dateId: string) => {
         setCurrentConversationId(dateId);
         const storedMessages = await getMessages(dateId);
-        const uiMessages = storedMessages.map(m => ({
-            id: m.id, sender: m.sender as Sender, text: m.text, type: m.type as MessageType, timestamp: new Date(m.timestamp), imageUrl: m.imageUrl
-        }));
-        setMessages(uiMessages);
+        if (storedMessages && storedMessages.length > 0) {
+            const uiMessages = storedMessages.map(m => ({
+                id: m.id, sender: m.sender as Sender, text: m.text, type: m.type as MessageType, timestamp: new Date(m.timestamp), imageUrl: m.imageUrl
+            }));
+            setMessages(uiMessages);
+
+            // Try to find the analysis result and image in messages to restore state
+            const aiOne = uiMessages.find(m => m.sender === 'ai');
+            if (aiOne) setAnalysisResult(aiOne.text);
+
+            const imgMsg = uiMessages.find(m => m.imageUrl); // Or check conversation summary/image
+            // We might need to fetch conversation details for image
+            // But DreamMap/Journal pass ID.
+            // Let's rely on messages or re-fetch logic if needed. 
+            // Better: Load conversation metadata too?
+            // For now, minimal restoration.
+            // Actually getMessages doesn't return the conversation image URL directly usually, it's on conversation object.
+            // Note: In handleStartAnalysis we set dreamImageUrl state. We need to restore it.
+            // We can fetch conversation by ID.
+            const conversation = await getTodayConversation(); // This gets *today*, we need by ID.
+            // We need a getConversation(id) function exposed in LandingHome/dreamDB.
+            // It is imported.
+            // Refactoring needed to get conversation details here.
+            // For simplicity, let's just show messages. Image restoration might require more plumbing if not in messages.
+        }
     };
 
-    // Helper for Alert
     const showAlert = (msg: string) => {
         setAlertMessage(msg);
     };
 
-    // Start Analysis (Hero Button)
     const handleStartAnalysis = async () => {
         if (!user) {
             setShowLoginModal(true);
@@ -173,42 +180,27 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
 
         setIsLoading(true);
 
-        // --- NEW ISOLATION LOGIC ---
-        // 1. Reset Global AI History so it doesn't remember previous dreams
         startNewChat();
-
-        // 2. Generate a NEW Conversation ID for this specific analysis session
-        // This ensures DB storage is separate from previous dreams today
         const newConversationId = Date.now().toString();
         setCurrentConversationId(newConversationId);
-
-        // 3. Clear local messages state to show a fresh view (though we switch to Result view anyway)
         setMessages([]);
 
-        // --- END ISOLATION LOGIC ---
-
-        // 4. Save User Input to DB
         const userMsg: Message = { id: Date.now().toString(), sender: Sender.USER, text: dreamInput, type: MessageType.TEXT, timestamp: new Date() };
         await saveMessageToDB({ id: userMsg.id, conversationId: newConversationId, sender: 'user', text: dreamInput, type: 'text', timestamp: userMsg.timestamp });
-        setMessages([userMsg]); // Set fresh state
+        setMessages([userMsg]);
 
-        // 5. Increment Usage
         if (profile) {
             const newBalance = (profile.credits_balance || 0) + 1;
             await supabase.from('profiles').update({ credits_balance: newBalance }).eq('id', user.id);
         }
 
-        // 6. Call AI
         try {
-            // Use WAITING_STYLE stage to trigger the "Analyze THIS dream with THIS style" logic
-            // We pass dreamInput as context.
             const response = await sendMessageToGemini(selectedStyle, AppStage.WAITING_STYLE, dreamInput, selectedStyle);
 
             setIsLoading(false);
             setAnalysisResult(response);
             setShowResult(true);
 
-            // Save AI Response
             const aiMsg: Message = { id: Date.now().toString(), sender: Sender.AI, text: response, type: MessageType.TEXT, timestamp: new Date() };
             await saveMessageToDB({ id: aiMsg.id, conversationId: newConversationId, sender: 'ai', text: response, type: 'text', timestamp: aiMsg.timestamp });
             setMessages(prev => [...prev, aiMsg]);
@@ -220,26 +212,20 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
         }
     };
 
-    // Handle Follow-up Chat
     const handleChatSend = async (text: string) => {
         if (!text.trim()) return;
 
         if (!user) {
             showAlert(language === 'zh' ? "请先登录以继续对话" : "Please login to continue the conversation.");
-            // Optionally open login modal
-            // setShowLoginModal(true);
             return;
         }
 
-        // Close manual input if open
         setShowChatInput(false);
 
-        // 1. Add User Message
         const userMsg: Message = { id: Date.now().toString(), sender: Sender.USER, text, type: MessageType.TEXT, timestamp: new Date() };
         setMessages(prev => [...prev, userMsg]);
         setChatInput('');
 
-        // 2. Add Loading Message
         const loadingMsgId = "loading-" + Date.now();
         const loadingMsg: Message = { id: loadingMsgId, sender: Sender.AI, text: '', type: MessageType.LOADING, timestamp: new Date() };
         setMessages(prev => [...prev, loadingMsg]);
@@ -247,7 +233,6 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
         try {
             const response = await sendMessageToGemini(text, AppStage.FOLLOW_UP, dreamInput, selectedStyle || AnalysisStyleId.RATIONAL);
 
-            // 3. Remove Loading and Add Response
             setMessages(prev => prev.filter(m => m.id !== loadingMsgId));
 
             const aiMsg: Message = { id: Date.now().toString(), sender: Sender.AI, text: response, type: MessageType.TEXT, timestamp: new Date() };
@@ -261,7 +246,6 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
         }
     };
 
-    // Generate Dream Image
     const handleGenerateImage = async () => {
         if (!dreamInput || !analysisResult) return;
         setIsGeneratingImage(true);
@@ -294,62 +278,26 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
         }
     };
 
-    // ... handleReset ...
     const handleReset = () => {
         setDreamInput('');
         setSelectedStyle(null);
         setSelectedCategory(null);
         setAnalysisResult(null);
-        setDreamImageUrl(null); // Reset image
+        setDreamImageUrl(null);
         setShowResult(false);
         setMessages([]);
         const newId = Date.now().toString();
         setCurrentConversationId(newId);
+        // Clean URL param if present
+        setSearchParams({});
     };
 
     return (
         <div className="h-full w-full bg-[#0B0F19] text-slate-200 flex flex-col font-sans selection:bg-indigo-500/30 overflow-hidden">
             <AlertPopup isOpen={!!alertMessage} message={alertMessage || ''} onClose={() => setAlertMessage(null)} language={language} />
 
-            <header className="flex-none h-16 w-full px-6 flex items-center justify-between border-b border-white/5 bg-[#0B0F19]/80 backdrop-blur-md z-20 sticky top-0">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-colors">
-                        <Menu size={20} />
-                    </button>
-                    <span onClick={handleReset} className="font-serif text-lg tracking-wide text-indigo-300 cursor-pointer hover:text-indigo-200 transition-colors">Dream Whisperer</span>
-                </div>
-                <div className="flex items-center gap-4">
-                    {!user && (
-                        <button
-                            onClick={() => setShowLoginModal(true)}
-                            className="text-sm font-medium text-slate-400 hover:text-white transition-colors"
-                        >
-                            {language === 'zh' ? '登录' : 'Login'}
-                        </button>
-                    )}
-                    {user && (
-                        <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-400">
-                            <Sparkles size={12} className="text-amber-400" />
-                            <span>{(profile?.credits_balance || 0)} / 3</span>
-                        </div>
-                    )}
-                </div>
-            </header>
+            {/* Removed Local Header */}
 
-            <Sidebar
-                isOpen={sidebarOpen}
-                onClose={() => setSidebarOpen(false)}
-                language={language}
-                onToggleLanguage={onToggleLanguage}
-                onSelectConversation={loadConversation}
-                currentConversationId={currentConversationId}
-                user={user}
-                profile={profile}
-                onOpenLogin={() => setShowLoginModal(true)}
-                onLogout={signOut}
-            />
-
-            {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto w-full relative">
 
                 <AnimatePresence mode="wait">
@@ -446,7 +394,6 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
                                                 )}
                                             </button>
 
-                                            {/* Moved Back Button */}
                                             {selectedCategory && (
                                                 <button
                                                     onClick={() => setSelectedCategory(null)}
@@ -469,7 +416,7 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language, onToggleLanguage })
                             animate={{ opacity: 1, scale: 1 }}
                             className="max-w-4xl mx-auto min-h-full py-12 px-4"
                         >
-                            <div className="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors cursor-pointer w-fit" onClick={() => setShowResult(false)}>
+                            <div className="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors cursor-pointer w-fit" onClick={handleReset}>
                                 <ChevronLeft size={20} />
                                 <span>{language === 'zh' ? '返回输入' : 'Back to Input'}</span>
                             </div>

@@ -1,28 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Cloud, CloudDownload, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Cloud, CloudDownload, Loader2, Star, Moon } from 'lucide-react';
 import { getConversationsForMonth, Conversation, getMessages, StoredMessage, getTodayId, restoreFromSupabase } from '../services/dreamDB';
 import { Language } from '../types';
+import clsx from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: (string | undefined | null | false)[]) {
+    return twMerge(clsx(inputs));
+}
 
 interface DreamMapPanelProps {
     language: Language;
     onSelectDate: (dateId: string) => void;
-    onBack: () => void;
+    onBack: () => void; // Kept for prop compatibility
 }
 
-const DreamMapPanel: React.FC<DreamMapPanelProps> = ({ language, onSelectDate, onBack }) => {
+const DreamMapPanel: React.FC<DreamMapPanelProps> = ({ language, onSelectDate }) => {
     const today = new Date();
     const [currentYear, setCurrentYear] = useState(today.getFullYear());
     const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
     const [dreamDays, setDreamDays] = useState<Map<number, Conversation>>(new Map());
     const [selectedDay, setSelectedDay] = useState<number | null>(null);
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-    const [previewMessages, setPreviewMessages] = useState<StoredMessage[]>([]);
+
+    // Preview state - simplified for compact view
+    const [isRestoring, setIsRestoring] = useState(false);
 
     const todayId = getTodayId();
     const [todayYear, todayMonth, todayDay] = todayId.split('-').map(Number);
-    const [isRestoring, setIsRestoring] = useState(false);
 
-    // Load conversations for current month
     useEffect(() => {
         const loadMonth = async () => {
             const conversations = await getConversationsForMonth(currentYear, currentMonth);
@@ -31,39 +38,15 @@ const DreamMapPanel: React.FC<DreamMapPanelProps> = ({ language, onSelectDate, o
         loadMonth();
     }, [currentYear, currentMonth]);
 
-    // Load preview when day is selected
     useEffect(() => {
         if (selectedDay !== null) {
-            const dateId = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
             const conversation = dreamDays.get(selectedDay);
             setSelectedConversation(conversation || null);
-
-            if (conversation) {
-                getMessages(dateId).then(messages => {
-                    const userMessages = messages.filter(m => m.sender === 'user').slice(0, 2);
-                    setPreviewMessages(userMessages);
-                });
-            } else {
-                setPreviewMessages([]);
-            }
         }
-    }, [selectedDay, dreamDays, currentYear, currentMonth]);
+    }, [selectedDay, dreamDays]);
 
-    const monthNames = language === 'zh'
-        ? ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
-        : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    const weekDays = language === 'zh'
-        ? ['日', '一', '二', '三', '四', '五', '六']
-        : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-    const getDaysInMonth = (year: number, month: number) => {
-        return new Date(year, month, 0).getDate();
-    };
-
-    const getFirstDayOfMonth = (year: number, month: number) => {
-        return new Date(year, month - 1, 1).getDay();
-    };
+    const getDaysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
+    const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month - 1, 1).getDay();
 
     const goToPreviousMonth = () => {
         if (currentMonth === 1) {
@@ -85,42 +68,20 @@ const DreamMapPanel: React.FC<DreamMapPanelProps> = ({ language, onSelectDate, o
         setSelectedDay(null);
     };
 
-    const handleDayClick = (day: number) => {
-        setSelectedDay(day);
-    };
-
-    const handleViewConversation = () => {
-        if (selectedDay !== null) {
-            const dateId = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
-            onSelectDate(dateId);
-        }
-    };
-
     const daysInMonth = getDaysInMonth(currentYear, currentMonth);
     const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
 
-    const calendarDays: (number | null)[] = [];
-    for (let i = 0; i < firstDay; i++) {
-        calendarDays.push(null);
-    }
-    for (let i = 1; i <= daysInMonth; i++) {
-        calendarDays.push(i);
-    }
+    const calendarDays: (number | null)[] = Array(firstDay).fill(null);
+    for (let i = 1; i <= daysInMonth; i++) calendarDays.push(i);
 
-    const isToday = (day: number) => {
-        return currentYear === todayYear && currentMonth === todayMonth && day === todayDay;
-    };
-
-    const hasDream = (day: number) => {
-        return dreamDays.has(day);
-    };
+    const isToday = (day: number) => currentYear === todayYear && currentMonth === todayMonth && day === todayDay;
+    const hasDream = (day: number) => dreamDays.has(day);
 
     const handleRestore = async () => {
         if (!confirm(language === 'zh' ? '确定要从云端恢复数据吗？这将覆盖本地记录。' : 'Restore data from cloud? This will overwrite local records.')) return;
         setIsRestoring(true);
         try {
             await restoreFromSupabase();
-            // Reload current month data
             const conversations = await getConversationsForMonth(currentYear, currentMonth);
             setDreamDays(conversations);
             alert(language === 'zh' ? '恢复成功' : 'Restore Successful');
@@ -133,104 +94,92 @@ const DreamMapPanel: React.FC<DreamMapPanelProps> = ({ language, onSelectDate, o
     };
 
     return (
-        <div className="flex flex-col h-full">
-            {/* Back button */}
-            <button
-                onClick={onBack}
-                className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 text-sm"
+        <div className="w-full flex justify-center py-8 px-4">
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-md bg-[#131926]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
             >
-                <ChevronLeft size={16} />
-                <span>{language === 'zh' ? '返回菜单' : 'Back'}</span>
-            </button>
+                {/* Decorative Glow */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[50px] pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[50px] pointer-events-none" />
 
-            {/* Month Navigation */}
-            <div className="flex items-center justify-between mb-3">
-                <button onClick={goToPreviousMonth} className="p-1 text-gray-400 hover:text-white rounded">
-                    <ChevronLeft size={16} />
-                </button>
-                <h3 className="text-sm font-medium text-white">
-                    {monthNames[currentMonth - 1]} {currentYear}
-                </h3>
-                <button onClick={goToNextMonth} className="p-1 text-gray-400 hover:text-white rounded">
-                    <ChevronRight size={16} />
-                </button>
-            </div>
-
-            {/* Restore Button */}
-            <div className="flex justify-end mb-4">
-                <button
-                    onClick={handleRestore}
-                    disabled={isRestoring}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded text-[10px] transition-colors"
-                >
-                    {isRestoring ? <Loader2 size={12} className="animate-spin" /> : <CloudDownload size={12} />}
-                    <span>{language === 'zh' ? '同步云端数据' : 'Sync from Cloud'}</span>
-                </button>
-            </div>
-
-            {/* Week days header */}
-            <div className="grid grid-cols-7 gap-0.5 mb-1">
-                {weekDays.map((day, index) => (
-                    <div key={index} className="text-center text-[10px] text-gray-500 py-1">
-                        {day}
-                    </div>
-                ))}
-            </div>
-
-            {/* Days grid - compact */}
-            <div className="grid grid-cols-7 gap-0.5">
-                {calendarDays.map((day, index) => (
-                    <div key={index} className="aspect-square">
-                        {day !== null && (
-                            <button
-                                onClick={() => handleDayClick(day)}
-                                className={`w-full h-full flex flex-col items-center justify-center rounded-md transition-all relative text-xs
-                  ${isToday(day) ? 'bg-blue-500 text-white' : ''}
-                  ${selectedDay === day && !isToday(day) ? 'bg-white/20' : ''}
-                  ${!isToday(day) && selectedDay !== day ? 'hover:bg-white/10 text-gray-300' : ''}
-                `}
-                            >
-                                <span>{day}</span>
-                                {hasDream(day) && (
-                                    <div className={`absolute bottom-0.5 w-1 h-1 rounded-full ${isToday(day) ? 'bg-white' : 'bg-blue-400'}`}
-                                        style={{ boxShadow: isToday(day) ? 'none' : '0 0 3px rgba(59, 130, 246, 0.6)' }}
-                                    />
-                                )}
-                            </button>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            {/* Selected Day Summary */}
-            {selectedDay !== null && (
-                <div className="mt-4 flex-1 overflow-y-auto">
-                    {selectedConversation ? (
-                        <button
-                            onClick={handleViewConversation}
-                            className="w-full bg-white/5 rounded-lg p-3 text-left hover:bg-white/10 transition-colors border border-white/10"
-                        >
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] text-blue-400">
-                                    {language === 'zh' ? '梦境记录' : 'Dream Log'}
-                                </span>
-                            </div>
-                            <p className="text-xs text-white line-clamp-2">
-                                {selectedConversation.summary || previewMessages[0]?.text.slice(0, 60) + '...' || (language === 'zh' ? '点击查看' : 'Click to view')}
-                            </p>
-                            <p className="text-[10px] text-blue-400 mt-2">
-                                {language === 'zh' ? '查看 →' : 'View →'}
-                            </p>
-                        </button>
-                    ) : (
-                        <div className="bg-white/5 rounded-lg p-3 text-center border border-white/10">
-                            <p className="text-xs text-gray-500">
-                                {language === 'zh' ? '这一天没有记录' : 'No record'}
-                            </p>
+                <div className="relative z-10 flex flex-col gap-6">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-indigo-100">
+                            <Moon size={16} className="text-indigo-300" />
+                            <span className="text-base font-serif tracking-wide border-l border-white/10 pl-3">
+                                {language === 'zh' ? `${currentMonth}月 ${currentYear}` : new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}
+                            </span>
                         </div>
-                    )}
+
+                        <div className="flex items-center gap-1 bg-white/5 rounded-lg border border-white/5 p-0.5">
+                            <button onClick={goToPreviousMonth} className="p-1.5 hover:bg-white/10 rounded transition-colors text-slate-400 hover:text-white">
+                                <ChevronLeft size={14} />
+                            </button>
+                            <button onClick={goToNextMonth} className="p-1.5 hover:bg-white/10 rounded transition-colors text-slate-400 hover:text-white">
+                                <ChevronRight size={14} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Week Header */}
+                    <div className="grid grid-cols-7 text-center">
+                        {(language === 'zh' ? ['日', '一', '二', '三', '四', '五', '六'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S']).map((day, i) => (
+                            <div key={i} className="text-[10px] font-bold text-slate-600 uppercase tracking-widest py-1">
+                                {day}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 gap-y-2 gap-x-1">
+                        {calendarDays.map((day, idx) => {
+                            if (!day) return <div key={`empty-${idx}`} className="aspect-square" />;
+
+                            const isDream = hasDream(day);
+                            const todayIs = isToday(day);
+                            const dateId = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                            return (
+                                <button
+                                    key={day}
+                                    disabled={!isDream}
+                                    onClick={() => isDream && onSelectDate(dateId)}
+                                    className={cn(
+                                        "aspect-square rounded-full flex flex-col items-center justify-center text-xs font-medium transition-all duration-300 relative group",
+                                        isDream
+                                            ? "text-indigo-100 hover:bg-white/5 cursor-pointer"
+                                            : "text-slate-600 cursor-default",
+                                        todayIs && "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
+                                    )}
+                                >
+                                    <span>{day}</span>
+                                    {isDream && !todayIs && (
+                                        <div className="absolute -bottom-1 w-1 h-1 bg-indigo-400 rounded-full shadow-[0_0_4px_rgba(129,140,248,0.8)]" />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Footer / Restore */}
+                    <div className="flex justify-between items-center pt-2 border-t border-white/5 mt-2">
+                        <span className="text-[10px] text-slate-500">
+                            {language === 'zh' ? '• 有梦记录' : '• Dream Logged'}
+                        </span>
+                        <button
+                            onClick={handleRestore}
+                            disabled={isRestoring}
+                            className="flex items-center gap-1.5 px-2 py-1 hover:bg-white/5 text-slate-500 hover:text-indigo-300 rounded text-[10px] transition-colors"
+                        >
+                            {isRestoring ? <Loader2 size={10} className="animate-spin" /> : <CloudDownload size={10} />}
+                            <span>{language === 'zh' ? '同步' : 'Sync'}</span>
+                        </button>
+                    </div>
                 </div>
-            )}
+            </motion.div>
         </div>
     );
 };

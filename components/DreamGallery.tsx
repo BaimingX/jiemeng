@@ -43,20 +43,11 @@ const DreamGallery: React.FC<DreamGalleryProps> = ({ language }) => {
     return (
         <div className="min-h-screen bg-[#050505] text-white overflow-y-auto custom-scrollbar">
             {/* Navigation / Header - Floating minimalist */}
-            <div className="sticky top-0 z-50 px-6 py-6 md:px-12 md:py-8 flex justify-between items-center bg-gradient-to-b from-[#050505] to-transparent pointer-events-none">
-                <button
-                    onClick={() => navigate('/')}
-                    className="pointer-events-auto flex items-center gap-2 text-white/50 hover:text-white transition-colors duration-300 group"
-                >
-                    <ChevronLeft size={20} className="transform group-hover:-translate-x-1 transition-transform duration-300" />
-                    <span className="text-sm tracking-widest uppercase font-light">{language === 'zh' ? '返回' : 'BACK'}</span>
-                </button>
-
-                <h1 className="text-sm font-medium tracking-[0.2em] text-white/30 uppercase select-none">
-                    {language === 'zh' ? '梦境图廊' : 'SILENT REVERIE'}
+            {/* Navigation / Header - Floating minimalist - No Back Button */}
+            <div className="sticky top-0 z-50 px-6 py-6 md:px-12 md:py-8 flex justify-center items-center bg-gradient-to-b from-[#050505] via-[#050505]/80 to-transparent pointer-events-none">
+                <h1 className="text-sm font-medium tracking-[0.3em] text-white/40 uppercase select-none relative z-10">
+                    {language === 'zh' ? '· 梦境图廊 ·' : '· SILENT REVERIE ·'}
                 </h1>
-
-                <div className="w-16" /> {/* Spacer for visual balance */}
             </div>
 
             {/* Main Canvas */}
