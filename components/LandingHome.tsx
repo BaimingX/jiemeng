@@ -1,27 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../lib/supabaseClient';
 import { Sparkles, Brain, Lock, ChevronRight, ChevronLeft, MessageSquare, Plus, Image as ImageIcon, AlertCircle, X } from 'lucide-react';
 import { Sender, Message, MessageType, AppStage, AnalysisStyleId, StyleCategory, Language } from '../types';
 import { useAuth } from '../context/AuthContext';
 import LoginPopup from './LoginPopup';
 import MessageBubble from './MessageBubble';
 import StyleSelector from './StyleSelector';
+import DreamCardPopup from './DreamCardPopup';
+import Seo from './Seo';
 import { startNewChat, sendMessageToGemini } from '../services/geminiService';
 import {
     initDB,
-    getTodayConversation,
+    getConversation,
     getMessages,
     addMessage as saveMessageToDB,
     getTodayId,
+    getNextConversationIdForToday,
+    updateConversationSummary,
+    syncDailyConversation,
+    fetchConversationFromSupabase,
 } from '../services/dreamDB';
+import { generateDreamCard } from '../services/replicateService';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 // Helper for tailwind class merging
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
+}
+
+function formatAnalysisHtml(text: string) {
+    const escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    return escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+function getBaseDateId(dateId: string) {
+    const parts = dateId.split('-');
+    if (parts.length >= 3) {
+        return `${parts[0]}-${parts[1]}-${parts[2]}`;
+    }
+    return dateId;
 }
 
 // Custom Alert Popup Component
@@ -59,6 +81,51 @@ const AlertPopup: React.FC<AlertPopupProps> = ({ isOpen, message, onClose, langu
     );
 };
 
+interface MemberGatePopupProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubscribe: () => void;
+    language: Language;
+}
+
+const MemberGatePopup: React.FC<MemberGatePopupProps> = ({ isOpen, onClose, onSubscribe, language }) => {
+    if (!isOpen) return null;
+
+    const isZh = language === 'zh';
+    const title = isZh ? '会员专属功能' : 'Members Only';
+    const message = isZh
+        ? '梦境卡生成与深入对话仅对会员开放。成为会员后可无限制解析并记录梦境。'
+        : 'Dream Card creation and Deep Dive chat are for members only. Members can analyze and save dreams without limits.';
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-[#1A2133] border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl scale-100 animate-scale-in">
+                <div className="p-6 text-center space-y-3">
+                    <div className="w-12 h-12 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto">
+                        <Lock className="text-indigo-300" size={22} />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">{title}</h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">{message}</p>
+                </div>
+                <div className="border-t border-white/5 p-4 space-y-3">
+                    <button
+                        onClick={onSubscribe}
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium transition-colors"
+                    >
+                        {isZh ? '去订阅' : 'View Plans'}
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="w-full bg-white/5 hover:bg-white/10 text-slate-300 py-3 rounded-xl font-medium transition-colors"
+                    >
+                        {isZh ? '稍后再说' : 'Maybe later'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface LandingHomeProps {
     language: Language;
     onToggleLanguage: () => void;
@@ -72,14 +139,18 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<string | null>(null);
     const [showResult, setShowResult] = useState(false);
-    const [dreamImageUrl, setDreamImageUrl] = useState<string | null>(null);
-    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [cardStatus, setCardStatus] = useState<'idle' | 'generating' | 'ready'>('idle');
+    const [cardProgress, setCardProgress] = useState(0);
+    const [cardImageUrl, setCardImageUrl] = useState<string | null>(null);
+    const [isCardPopupOpen, setIsCardPopupOpen] = useState(false);
     const [chatInput, setChatInput] = useState('');
     const [showChatInput, setShowChatInput] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
 
     // Alert State
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
+    const [showMemberGate, setShowMemberGate] = useState(false);
 
     const FOLLOW_UP_QUESTIONS_ZH = [
         "对应现实哪件事？",
@@ -98,13 +169,32 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
         "Recall techniques?"
     ];
 
+    const isZh = language === 'zh';
+    const seoTitle = isZh ? 'Oneiro AI 梦境解析与梦境含义' : 'Oneiro AI | Dream Interpretation & Dream Meaning';
+    const seoDescription = isZh
+        ? 'Oneiro AI 是 AI 驱动的梦境解析与梦境日记应用，提供梦境含义、梦境符号与清醒梦洞见。'
+        : 'Oneiro AI is an AI-powered dream interpretation and dream journal app for dream meaning, dream symbols, and lucid dreaming insights.';
+    const seoKeywords = isZh
+        ? '梦境解析, 梦境含义, 梦境词典, 梦境符号, 梦境日记, 梦境解析应用, AI 梦境解析, 清醒梦, 反复梦境'
+        : 'dream interpretation, dream meaning, dream dictionary, dream symbols, dream interpretation app, dream journal app, AI dream interpretation, lucid dreaming, recurring dreams';
+
     const [currentConversationId, setCurrentConversationId] = useState<string>(getTodayId());
     const [showLoginModal, setShowLoginModal] = useState(false);
 
-    const { user, profile } = useAuth();
+    const { user, profile, billingStatus, refreshBillingStatus } = useAuth();
+    const isMember = billingStatus?.access === 'lifetime' ||
+        (billingStatus?.access === 'subscription' && billingStatus?.isActive);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const cardProgressTimerRef = useRef<number | null>(null);
+    const syncTimeoutRef = useRef<any>(null);
 
     const [messages, setMessages] = useState<Message[]>([]);
+
+    const formattedAnalysisHtml = analysisResult ? formatAnalysisHtml(analysisResult) : '';
+    const dateParam = searchParams.get('date');
+    const isHistoryView = !!dateParam && getBaseDateId(dateParam) !== getTodayId();
+    const followUpMessages = (isHistoryView ? messages : messages.filter(m => m.timestamp > new Date(Date.now() - 1000 * 60 * 60 * 24)))
+        .slice(2);
 
     // --- Effects ---
     useEffect(() => {
@@ -124,40 +214,94 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
             }
         };
         init();
+        return () => {
+            if (cardProgressTimerRef.current !== null) {
+                window.clearInterval(cardProgressTimerRef.current);
+            }
+        };
     }, [searchParams]);
+
+    // Auto-sync current conversation to cloud (Debounced)
+    // Mirrors logic from Home.tsx to ensure first analysis is saved to history
+    useEffect(() => {
+        if (!user || messages.length === 0) return;
+
+        if (syncTimeoutRef.current) {
+            clearTimeout(syncTimeoutRef.current);
+        }
+
+        syncTimeoutRef.current = setTimeout(() => {
+            console.log("Auto-syncing conversation to cloud (LandingHome)...");
+            syncDailyConversation(currentConversationId);
+        }, 5000);
+
+        return () => {
+            if (syncTimeoutRef.current) {
+                clearTimeout(syncTimeoutRef.current);
+            }
+        };
+    }, [messages, user, currentConversationId]);
 
     const loadConversation = async (dateId: string) => {
         setCurrentConversationId(dateId);
-        const storedMessages = await getMessages(dateId);
+        setShowChatInput(false);
+        let storedMessages = await getMessages(dateId);
+
+        // If no local messages, try to restore from cloud
+        if (!storedMessages || storedMessages.length === 0) {
+            storedMessages = await fetchConversationFromSupabase(dateId);
+        }
+
         if (storedMessages && storedMessages.length > 0) {
             const uiMessages = storedMessages.map(m => ({
                 id: m.id, sender: m.sender as Sender, text: m.text, type: m.type as MessageType, timestamp: new Date(m.timestamp), imageUrl: m.imageUrl
             }));
             setMessages(uiMessages);
 
+            const firstUser = storedMessages.find(m => m.sender === 'user' && m.text?.trim());
+            if (firstUser) {
+                setDreamInput(firstUser.text);
+            }
+
             // Try to find the analysis result and image in messages to restore state
             const aiOne = uiMessages.find(m => m.sender === 'ai');
             if (aiOne) setAnalysisResult(aiOne.text);
 
             const imgMsg = uiMessages.find(m => m.imageUrl); // Or check conversation summary/image
+            if (imgMsg?.imageUrl) {
+                setCardImageUrl(imgMsg.imageUrl);
+                setCardStatus('ready');
+                setCardProgress(100);
+            }
             // We might need to fetch conversation details for image
             // But DreamMap/Journal pass ID.
             // Let's rely on messages or re-fetch logic if needed. 
             // Better: Load conversation metadata too?
             // For now, minimal restoration.
             // Actually getMessages doesn't return the conversation image URL directly usually, it's on conversation object.
-            // Note: In handleStartAnalysis we set dreamImageUrl state. We need to restore it.
-            // We can fetch conversation by ID.
-            const conversation = await getTodayConversation(); // This gets *today*, we need by ID.
-            // We need a getConversation(id) function exposed in LandingHome/dreamDB.
-            // It is imported.
-            // Refactoring needed to get conversation details here.
-            // For simplicity, let's just show messages. Image restoration might require more plumbing if not in messages.
+            // Note: In handleStartAnalysis we reset card image state. We need to restore it.
+            const conversation = await getConversation(dateId);
+            if (conversation?.imageUrl) {
+                setCardImageUrl(conversation.imageUrl);
+                setCardStatus('ready');
+                setCardProgress(100);
+            }
         }
     };
 
     const showAlert = (msg: string) => {
         setAlertMessage(msg);
+    };
+
+    const ensureMemberAccess = () => {
+        if (isMember) return true;
+        setShowMemberGate(true);
+        return false;
+    };
+
+    const handleMemberSubscribe = () => {
+        setShowMemberGate(false);
+        navigate('/subscribe');
     };
 
     const handleStartAnalysis = async () => {
@@ -166,9 +310,14 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
             return;
         }
 
-        const usageCount = profile?.credits_balance || 0;
-        if (usageCount >= 3) {
-            showAlert(language === 'zh' ? "您今日的解析次数已用完（3次）。请明天再来。" : "You have reached your daily limit (3 analyses). Please come back tomorrow.");
+        // Check billing status - members should never be blocked by trial limits
+        const isMember = billingStatus?.access === 'lifetime' ||
+            (billingStatus?.access === 'subscription' && billingStatus?.isActive);
+        const canUse = billingStatus?.canUse ?? true;
+        const trialRemaining = billingStatus?.trialRemaining ?? 3;
+
+        if (!isMember && (!canUse || (billingStatus?.access === 'free' && trialRemaining <= 0))) {
+            showAlert(language === 'zh' ? "您的免费试用次数已用完。请订阅以继续使用。" : "You have used all your free trials. Please subscribe to continue.");
             return;
         }
 
@@ -178,10 +327,22 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
             return;
         }
 
+        const nextConversation = await getNextConversationIdForToday(5);
+        if (!nextConversation) {
+            showAlert(language === 'zh'
+                ? '今天已经解析了 5 个梦境啦，别太沉迷哦，明天再来吧。'
+                : 'You have already interpreted 5 dreams today. Take a breather and come back tomorrow.');
+            return;
+        }
+
         setIsLoading(true);
+        setCardStatus('idle');
+        setCardProgress(0);
+        setCardImageUrl(null);
+        setIsCardPopupOpen(false);
 
         startNewChat();
-        const newConversationId = Date.now().toString();
+        const newConversationId = nextConversation.id;
         setCurrentConversationId(newConversationId);
         setMessages([]);
 
@@ -189,10 +350,8 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
         await saveMessageToDB({ id: userMsg.id, conversationId: newConversationId, sender: 'user', text: dreamInput, type: 'text', timestamp: userMsg.timestamp });
         setMessages([userMsg]);
 
-        if (profile) {
-            const newBalance = (profile.credits_balance || 0) + 1;
-            await supabase.from('profiles').update({ credits_balance: newBalance }).eq('id', user.id);
-        }
+        // Note: Trial usage is now tracked in billing_trials table via Edge Function
+        // No need to manually update profile.credits_balance
 
         try {
             const response = await sendMessageToGemini(selectedStyle, AppStage.WAITING_STYLE, dreamInput, selectedStyle);
@@ -205,10 +364,26 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
             await saveMessageToDB({ id: aiMsg.id, conversationId: newConversationId, sender: 'ai', text: response, type: 'text', timestamp: aiMsg.timestamp });
             setMessages(prev => [...prev, aiMsg]);
 
-        } catch (e) {
+            try {
+                const summaryText = dreamInput.trim().slice(0, 120) || response.slice(0, 120);
+                await updateConversationSummary(newConversationId, summaryText);
+            } catch (summaryError) {
+                console.error('Failed to update dream summary', summaryError);
+            }
+
+            // Refresh billing status to show updated trial count
+            await refreshBillingStatus();
+
+        } catch (e: any) {
             console.error(e);
             setIsLoading(false);
-            showAlert(language === 'zh' ? "分析失败，请重试。" : "Analysis failed, please try again.");
+
+            // Handle billing-specific errors
+            if (e.message?.includes('Subscription required') || e.message?.includes('订阅')) {
+                showAlert(language === 'zh' ? "您的免费试用次数已用完。请订阅以继续使用。" : "You have used all your free trials. Please subscribe to continue.");
+            } else {
+                showAlert(language === 'zh' ? "分析失败，请重试。" : "Analysis failed, please try again.");
+            }
         }
     };
 
@@ -219,6 +394,8 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
             showAlert(language === 'zh' ? "请先登录以继续对话" : "Please login to continue the conversation.");
             return;
         }
+
+        if (!ensureMemberAccess()) return;
 
         setShowChatInput(false);
 
@@ -247,34 +424,50 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
     };
 
     const handleGenerateImage = async () => {
-        if (!dreamInput || !analysisResult) return;
-        setIsGeneratingImage(true);
-        try {
-            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dream-image`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
-                },
-                body: JSON.stringify({
-                    dreamContent: dreamInput,
-                    analysisResult: analysisResult,
-                    style: selectedStyle
-                })
+        if (!ensureMemberAccess()) return;
+        if (!dreamInput || !analysisResult || cardStatus === 'generating') return;
+
+        setCardStatus('generating');
+        setCardProgress(0);
+        setCardImageUrl(null);
+
+        if (cardProgressTimerRef.current !== null) {
+            window.clearInterval(cardProgressTimerRef.current);
+        }
+
+        cardProgressTimerRef.current = window.setInterval(() => {
+            setCardProgress((prev) => {
+                const next = prev + Math.random() * 8 + 6;
+                return next >= 88 ? 88 : next;
             });
+        }, 420);
 
-            if (!response.ok) throw new Error('Failed to generate image');
+        try {
+            const imageUrl = await generateDreamCard(dreamInput, analysisResult, selectedStyle || undefined);
+            setCardImageUrl(imageUrl);
+            setCardProgress(100);
+            setCardStatus('ready');
 
-            const data = await response.json();
-            if (data.imageUrl) {
-                setDreamImageUrl(data.imageUrl);
+            if (cardProgressTimerRef.current !== null) {
+                window.clearInterval(cardProgressTimerRef.current);
+                cardProgressTimerRef.current = null;
+            }
+
+            try {
+                const summaryText = dreamInput.trim().slice(0, 100) || analysisResult.slice(0, 100);
+                await updateConversationSummary(currentConversationId, summaryText, imageUrl);
+            } catch (updateError) {
+                console.error('Failed to update dream summary', updateError);
             }
         } catch (error) {
             console.error(error);
             showAlert(language === 'zh' ? "图片生成失败，请重试。" : "Failed to generate image.");
+            setCardStatus('idle');
         } finally {
-            setIsGeneratingImage(false);
+            if (cardProgressTimerRef.current !== null) {
+                window.clearInterval(cardProgressTimerRef.current);
+                cardProgressTimerRef.current = null;
+            }
         }
     };
 
@@ -283,22 +476,38 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
         setSelectedStyle(null);
         setSelectedCategory(null);
         setAnalysisResult(null);
-        setDreamImageUrl(null);
+        setCardImageUrl(null);
+        setCardProgress(0);
+        setCardStatus('idle');
+        setIsCardPopupOpen(false);
         setShowResult(false);
         setMessages([]);
-        const newId = Date.now().toString();
+        const newId = getTodayId();
         setCurrentConversationId(newId);
         // Clean URL param if present
         setSearchParams({});
     };
 
     return (
-        <div className="h-full w-full bg-[#0B0F19] text-slate-200 flex flex-col font-sans selection:bg-indigo-500/30 overflow-hidden">
+        <div className="min-h-screen w-full bg-[#0B0F19] text-slate-200 flex flex-col font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+            <Seo
+                title={seoTitle}
+                description={seoDescription}
+                path="/"
+                lang={language}
+                keywords={seoKeywords}
+            />
             <AlertPopup isOpen={!!alertMessage} message={alertMessage || ''} onClose={() => setAlertMessage(null)} language={language} />
+            <MemberGatePopup
+                isOpen={showMemberGate}
+                onClose={() => setShowMemberGate(false)}
+                onSubscribe={handleMemberSubscribe}
+                language={language}
+            />
 
             {/* Removed Local Header */}
 
-            <main className="flex-1 overflow-y-auto w-full relative">
+            <main className="flex-1 w-full relative">
 
                 <AnimatePresence mode="wait">
                     {!showResult ? (
@@ -317,12 +526,12 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
 
                             <div className="text-center mb-10 space-y-4 relative z-10">
                                 <h1 className="text-4xl md:text-6xl font-serif text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-purple-200 to-indigo-200 tracking-tight pb-2">
-                                    {language === 'zh' ? '解梦 · 洞见' : 'Dream Analysis'}
+                                    {isZh ? 'Oneiro AI 梦境解析' : 'Oneiro AI Dream Interpretation'}
                                 </h1>
                                 <p className="text-slate-400 max-w-lg mx-auto leading-relaxed text-sm md:text-base font-light tracking-wide">
-                                    {language === 'zh'
-                                        ? '在理智与直觉交织的边缘，寻找潜意识的低语。'
-                                        : 'Decrypt the whispers of your subconscious at the edge of reason and intuition.'}
+                                    {isZh
+                                        ? 'AI 驱动的梦境含义、梦境符号与清醒梦洞见。'
+                                        : 'AI-powered dream meaning, dream symbols, and lucid dreaming insights.'}
                                 </p>
                             </div>
 
@@ -360,9 +569,13 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
                                         <div className="w-full md:w-auto flex flex-col justify-end gap-3 min-w-[200px]">
                                             <div className="text-right text-xs text-slate-500 h-6">
                                                 {user ? (
-                                                    <span>
-                                                        {language === 'zh' ? `剩余次数: ${Math.max(0, 3 - (profile?.credits_balance || 0))}` : `Credits: ${Math.max(0, 3 - (profile?.credits_balance || 0))}`}
-                                                    </span>
+                                                    isMember ? null : (
+                                                        <span>
+                                                            {language === 'zh'
+                                                                ? `剩余次数: ${billingStatus?.trialRemaining ?? 3}`
+                                                                : `Credits: ${billingStatus?.trialRemaining ?? 3}`}
+                                                        </span>
+                                                    )
                                                 ) : (
                                                     <span className="flex items-center justify-end gap-1.5 text-amber-500/80">
                                                         <Lock size={12} />
@@ -431,49 +644,79 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
                                 </h2>
 
                                 <div className="prose prose-invert prose-indigo max-w-none prose-p:leading-relaxed prose-headings:font-serif prose-headings:text-indigo-200">
-                                    <div className="whitespace-pre-wrap font-light text-slate-300">
-                                        {analysisResult}
-                                    </div>
+                                    <div
+                                        className="whitespace-pre-wrap font-light text-slate-300"
+                                        dangerouslySetInnerHTML={{ __html: formattedAnalysisHtml }}
+                                    />
                                 </div>
                             </div>
 
-                            {/* Dream Image Card */}
+                            {/* Dream Card Generation */}
                             <div className="mb-12">
-                                {dreamImageUrl ? (
-                                    <div className="bg-[#131926]/60 border border-white/10 rounded-2xl p-4 backdrop-blur-xl shadow-2xl animate-fade-in-up">
-                                        <div className="aspect-square w-full max-w-md mx-auto relative rounded-xl overflow-hidden group">
-                                            <img src={dreamImageUrl} alt="Dream Visual" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-6">
-                                                <a href={dreamImageUrl} target="_blank" rel="noreferrer" className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-lg text-white text-sm font-medium transition-colors">
-                                                    {language === 'zh' ? '下载原图' : 'Download Original'}
-                                                </a>
-                                            </div>
+                                <div className="bg-[#131926]/60 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl shadow-2xl">
+                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                                <ImageIcon size={18} className="text-indigo-300" />
+                                                {language === 'zh' ? '梦境具象图' : 'Dream Card'}
+                                            </h3>
+                                            <p className="text-xs text-slate-400 mt-1">
+                                                {language === 'zh'
+                                                    ? '生成一张可分享的梦境卡片（临时链接仅 7 天有效）'
+                                                    : 'Generate a shareable dream card (fal.ai links expire in 7 days).'}
+                                            </p>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex justify-center">
-                                        <button
-                                            onClick={handleGenerateImage}
-                                            disabled={isGeneratingImage}
-                                            className="group relative flex items-center gap-3 px-6 py-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 transition-all overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                                            {isGeneratingImage ? (
-                                                <>
-                                                    <div className="w-4 h-4 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
-                                                    <span>{language === 'zh' ? '正在绘制梦境...' : 'Painting your dream...'}</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <ImageIcon size={18} />
-                                                    <span>{language === 'zh' ? '生成梦境具象图' : 'Visualize Dream'}</span>
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
 
+                                        {cardStatus === 'ready' && cardImageUrl && (
+                                            <button
+                                                onClick={() => setIsCardPopupOpen(true)}
+                                                className="px-5 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium shadow-lg shadow-indigo-500/25 transition-all"
+                                            >
+                                                {language === 'zh' ? '查看梦境卡' : 'View Dream Card'}
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {cardStatus === 'generating' ? (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between text-xs text-slate-400">
+                                                <span>{language === 'zh' ? '正在生成中...' : 'Generating...'}</span>
+                                                <span>{Math.round(cardProgress)}%</span>
+                                            </div>
+                                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 transition-all duration-300"
+                                                    style={{ width: `${cardProgress}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-[11px] text-slate-500">
+                                                {language === 'zh'
+                                                    ? '提示：图片为临时链接，建议生成后立即保存到云端。'
+                                                    : 'Tip: The image is temporary. Save it to your library once it is ready.'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        cardStatus === 'ready' ? (
+                                            <span className="text-[11px] text-slate-500">
+                                                {language === 'zh'
+                                                    ? '该图片 7 天后可能失效，建议永久保存。'
+                                                    : 'This image may expire in 7 days. Save it to keep it forever.'}
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={handleGenerateImage}
+                                                className="group relative flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 transition-all overflow-hidden"
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                                <ImageIcon size={18} />
+                                                <span>
+                                                    {language === 'zh' ? '生成梦境具象图' : 'Visualize Dream'}
+                                                </span>
+                                            </button>
+                                        )
+                                    )}
+                                </div>
+                            </div>
                             {/* Follow up Chat */}
                             <div className="space-y-6">
                                 <div className="text-sm text-slate-500 uppercase tracking-widest font-semibold flex items-center gap-2">
@@ -483,14 +726,14 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
 
                                 {/* Chat History (Only follow ups) */}
                                 <div className="space-y-4">
-                                    {messages.filter(m => m.timestamp > new Date(Date.now() - 1000 * 60 * 60 * 24)).slice(2).map((msg) => (
+                                    {followUpMessages.map((msg) => (
                                         <MessageBubble key={msg.id} message={msg} />
                                     ))}
                                 </div>
 
                                 {/* Chat Input */}
                                 {/* Chat Options Grid */}
-                                {!showChatInput ? (
+                                {!isHistoryView && !showChatInput ? (
                                     <div className="space-y-4 mt-6">
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                             {(language === 'zh' ? FOLLOW_UP_QUESTIONS_ZH : FOLLOW_UP_QUESTIONS_EN).map((q, idx) => (
@@ -507,7 +750,10 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
                                         </div>
                                         <div className="flex justify-center">
                                             <button
-                                                onClick={() => setShowChatInput(true)}
+                                                onClick={() => {
+                                                    if (!ensureMemberAccess()) return;
+                                                    setShowChatInput(true);
+                                                }}
                                                 className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
                                             >
                                                 <Plus size={12} />
@@ -515,7 +761,7 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
                                             </button>
                                         </div>
                                     </div>
-                                ) : (
+                                ) : !isHistoryView && showChatInput ? (
                                     /* Manual Input Mode */
                                     <div className="relative mt-4 animate-fade-in-up">
                                         <input
@@ -544,17 +790,38 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
                                             <X size={16} />
                                         </button>
                                     </div>
-                                )}
+                                ) : null}
                             </div>
                             <div ref={messagesEndRef} />
                         </motion.div>
                     )}
                 </AnimatePresence>
+
             </main>
 
             <LoginPopup isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} language={language} />
+            {cardImageUrl && (
+                <DreamCardPopup
+                    isOpen={isCardPopupOpen}
+                    onClose={() => setIsCardPopupOpen(false)}
+                    imageUrl={cardImageUrl}
+                    conversationId={currentConversationId}
+                    language={language}
+                    onSaved={async (url) => {
+                        setCardImageUrl(url);
+                        try {
+                            const summaryText = dreamInput.trim().slice(0, 100) || analysisResult?.slice(0, 100) || 'Dream';
+                            await updateConversationSummary(currentConversationId, summaryText, url);
+                        } catch (error) {
+                            console.error('Failed to update dream summary', error);
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };
 
 export default LandingHome;
+
+

@@ -1,11 +1,13 @@
 import React from 'react';
 import { Sender, Message, MessageType } from '../types';
+import { Eye } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
+  onViewCard?: (imageUrl: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onViewCard }) => {
   const isUser = message.sender === Sender.USER;
 
   if (message.type === MessageType.LOADING) {
@@ -15,6 +17,49 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           <div className="w-2 h-2 bg-indigo-300 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
           <div className="w-2 h-2 bg-indigo-300 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
           <div className="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === MessageType.CARD_GENERATING) {
+    return (
+      <div className="flex w-full mb-4 pl-4">
+        <div className="bg-[#1E293B]/90 border border-white/10 p-5 rounded-2xl rounded-tl-none shadow-lg max-w-[85%] md:max-w-[320px]">
+          <div className="text-slate-300 mb-3 text-sm font-medium">{message.text}</div>
+          {/* Progress Bar */}
+          <div className="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 h-full rounded-full w-[40%] animate-[shimmer_2s_infinite]"></div>
+            {/* Note: if 'shimmer' isn't defined, we use a simpler animation style inline or standard classes */}
+            <style>{`
+                @keyframes progress-loading {
+                  0% { width: 10%; transform: translateX(-10%); }
+                  50% { width: 60%; transform: translateX(50%); }
+                  100% { width: 10%; transform: translateX(200%); }
+                }
+              `}</style>
+            <div
+              className="bg-gradient-to-r from-indigo-400 to-purple-400 h-full rounded-full"
+              style={{ animation: 'progress-loading 2s infinite linear' }}
+            ></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === MessageType.CARD_READY) {
+    return (
+      <div className="flex w-full mb-4 pl-4">
+        <div className="bg-[#131926] border border-white/10 p-5 rounded-2xl rounded-tl-none shadow-lg max-w-[85%] md:max-w-[320px]">
+          <div className="text-slate-200 mb-4 text-sm leading-relaxed">{message.text}</div>
+          <button
+            onClick={() => onViewCard?.(message.imageUrl || '')}
+            className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group"
+          >
+            <Eye size={18} className="group-hover:scale-110 transition-transform" />
+            <span className="font-medium">View Dream Card</span>
+          </button>
         </div>
       </div>
     );

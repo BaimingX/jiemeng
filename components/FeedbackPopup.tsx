@@ -73,8 +73,8 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isOpen, onClose, language
                             </h2>
                             <p className="text-slate-600">
                                 {isEn
-                                    ? 'Your feedback helps us improve Dream Decoder.'
-                                    : '您的建议将帮助我们改进 Dream Decoder。'}
+                                    ? 'Your feedback helps us improve Oneiro AI.'
+                                    : '您的建议将帮助我们改进 Oneiro AI。'}
                             </p>
                         </div>
                     ) : (
@@ -88,8 +88,8 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isOpen, onClose, language
                                 </h2>
                                 <p className="mt-2 text-sm text-slate-600">
                                     {isEn
-                                        ? 'Help us shape the future of Dream Decoder directly.'
-                                        : '直接参与 Dream Decoder 的开发，帮助我们做得更好。'}
+                                        ? 'Help us shape the future of Oneiro AI directly.'
+                                        : '直接参与 Oneiro AI 的开发，帮助我们做得更好。'}
                                 </p>
                             </div>
 

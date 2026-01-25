@@ -13,6 +13,7 @@ import PostAnalysisSelector, { PostAnalysisChoice } from './PostAnalysisSelector
 import StartAnalysisButton from './StartAnalysisButton';
 import { startNewChat, sendMessageToGemini } from '../services/geminiService';
 import { generateDreamCard } from '../services/replicateService';
+import DreamCardPopup from './DreamCardPopup';
 import {
     initDB,
     getTodayConversation,
@@ -60,7 +61,10 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
+
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [cardPopupOpen, setCardPopupOpen] = useState(false);
+    const [cardPopupUrl, setCardPopupUrl] = useState<string>('');
 
     // Conversation State
     const [session, setSession] = useState<DreamSession>({
@@ -494,53 +498,60 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
         } else if (choice === 'card') {
             // Generate Card
             if (dailyUsage.cards >= 2) {
-                // Should be disabled UI
                 return;
             }
-            // We increment AFTER success? Or before to prevent spam?
-            // Let's increment before to be safe/conservative.
             updateDailyUsage('cards');
 
             console.log("Choice is generate_card");
-            setIsLoading(true);
-            try {
-                console.log("Starting card generation flow...");
-                setSession(prev => ({ ...prev, stage: AppStage.GENERATING_CARD }));
+            // Set stage to GENERATING_CARD to disable input, but use messages for UI feedback
+            setSession(prev => ({ ...prev, stage: AppStage.GENERATING_CARD }));
 
-                // System message: Generating...
+            try {
+                // 1. Add "Generating..." message with Progress Bar
                 const generatingId = Date.now().toString() + Math.random().toString();
                 const generatingMsg = toStoredMessage({
                     id: generatingId,
                     sender: Sender.AI,
-                    text: language === 'zh' ? '让我为你描绘这个梦境...请稍等片刻。' : 'Let me visualize this dream for you... please wait a moment.',
-                    type: MessageType.TEXT,
+                    text: language === 'zh' ? '正在编织梦境...' : 'Weaving your dream...',
+                    type: MessageType.CARD_GENERATING,
                     timestamp: new Date()
                 }, currentConversationId!);
+
                 await saveMessageToDB(generatingMsg);
                 setMessages(prev => [...prev, toUIMessage(generatingMsg)]);
 
-                // 2. Generate image from fal.ai
+                // 2. Generate image
                 const imageUrl = await generateDreamCard(session.dreamContent, undefined, session.style);
                 console.log('Generated image URL:', imageUrl);
                 await updateConversationSummary(currentConversationId, session.dreamContent.slice(0, 100), imageUrl);
 
-                // Card Result Message
-                const cardId = Date.now().toString() + Math.random().toString();
-                const cardMsg = toStoredMessage({
-                    id: cardId,
+                // 3. Update the generating message to "Card Ready"
+                // Actually, we can just add a new message or replace the last one. 
+                // Replacing is better to remove the progress bar.
+
+                const cardReadyMsg = toStoredMessage({
+                    id: generatingId, // Reuse ID to replace? Or new ID?
+                    // Ideally we replace the "Generating" bubble with "Ready" bubble.
+                    // But in strict append-only log, we might just append.
+                    // However, for UI polish, replacement is nicer.
+                    // Let's UPDATE the local message state and DB.
                     sender: Sender.AI,
-                    text: language === 'zh' ? '这是你的梦境卡。你潜意识的一小片，被永远留存。' : 'Here is your dream card. A fragment of your subconscious, preserved forever.',
-                    type: MessageType.IMAGE,
+                    text: language === 'zh' ? '梦境卡已生成。' : 'Your Dream Card is ready.',
+                    type: MessageType.CARD_READY,
                     timestamp: new Date(),
                     imageUrl: imageUrl
                 }, currentConversationId!);
-                await saveMessageToDB(cardMsg);
-                setMessages(prev => [...prev, toUIMessage(cardMsg)]);
 
-                // Thank You Message
+                // Update in DB (overwrite) - saveMessageToDB uses 'put', so same ID overwrites
+                await saveMessageToDB(cardReadyMsg);
+
+                // Update in UI
+                setMessages(prev => prev.map(m => m.id === generatingId ? toUIMessage(cardReadyMsg) : m));
+
+                // 4. Thank You Message (Append)
                 const thankYouText = language === 'zh'
                     ? "谢谢支持！本App还在测试阶段，数据采集和收集评价是为了更好地优化体验，最终上线iOS和安卓各大应用商店。\n\n如果有任何想法或建议，欢迎点击下方的反馈按钮提交，邀请大家一起参与开发这个App！"
-                    : "Thank you for your support! This app is still in beta. We are collecting data and feedback to optimize the experience for our upcoming launch on iOS and Android stores.\n\nIf you have any ideas or suggestions, please click the feedback button below. We invite you to co-develop this app with us!";
+                    : "Thank you for your support! This app is still in beta.\n\nIf you have any ideas or suggestions, please click the feedback button below.";
 
                 const thankYouId = Date.now().toString() + Math.random().toString();
                 const thankYouMsg = toStoredMessage({
@@ -557,7 +568,6 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
                 setSession(prev => ({ ...prev, stage: AppStage.SHOWING_CARD }));
             } catch (err) {
                 console.error("Failed to generate card:", err);
-                // Error Message
                 const errorId = Date.now().toString() + Math.random().toString();
                 const errorMsg = toStoredMessage({
                     id: errorId,
@@ -568,9 +578,7 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
                 }, currentConversationId!);
                 await saveMessageToDB(errorMsg);
                 setMessages(prev => [...prev, toUIMessage(errorMsg)]);
-                setSession(prev => ({ ...prev, stage: AppStage.WAITING_POST_CHOICE })); // Revert to choice stage
-            } finally {
-                setIsLoading(false);
+                setSession(prev => ({ ...prev, stage: AppStage.WAITING_POST_CHOICE }));
             }
         }
     };
@@ -686,7 +694,7 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
                     <Menu size={24} />
                 </button>
                 <div className="flex flex-col items-center">
-                    <h1 className="text-base font-semibold text-black">Dream Whisperer</h1>
+                    <h1 className="text-base font-semibold text-black">Oneiro AI</h1>
                     <span className="text-[10px] text-gray-500 font-medium">
                         {isLoading ? (language === 'en' ? 'Connecting...' : '连接中...') : isViewingHistory ? conversationTitle : (language === 'en' ? 'Online' : '在线')}
                     </span>
@@ -710,12 +718,21 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
             </header>
 
             <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 no-scrollbar">
-                <div className="max-w-4xl mx-auto min-h-full flex flex-col justify-start">
+                <div className="max-w-4xl mx-auto min-h-full flex flex-col justify-start pb-32">
                     <div className="flex justify-center mb-6 mt-4">
                         <span className="bg-gray-200 text-gray-500 text-xs px-2 py-1 rounded">{conversationTitle}</span>
                     </div>
 
-                    {messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)}
+                    {messages.map((msg) => (
+                        <MessageBubble
+                            key={msg.id}
+                            message={msg}
+                            onViewCard={(url) => {
+                                setCardPopupUrl(url);
+                                setCardPopupOpen(true);
+                            }}
+                        />
+                    ))}
 
                     {session.stage === AppStage.WAITING_STYLE && !isLoading && !isViewingHistory && (
                         <StyleSelector onSelect={handleStyleSelect} language={language} />
@@ -769,6 +786,33 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
                 onClose={() => setShowFeedbackModal(false)}
                 language={language}
             />
+            <DreamCardPopup
+                isOpen={cardPopupOpen}
+                onClose={() => setCardPopupOpen(false)}
+                imageUrl={cardPopupUrl}
+                conversationId={currentConversationId}
+                language={language}
+                onSaved={async (permanentUrl) => {
+                    // Update UI State for Popup to use new URL
+                    setCardPopupUrl(permanentUrl);
+
+                    // Update Message in Chat
+                    const targetMsg = messages.find(m => (m.type === MessageType.CARD_READY || m.type === MessageType.IMAGE) && m.imageUrl === cardPopupUrl);
+
+                    if (targetMsg) {
+                        const updatedMsg = { ...targetMsg, imageUrl: permanentUrl };
+
+                        // Update UI
+                        setMessages(prev => prev.map(m => m.id === targetMsg.id ? updatedMsg : m));
+
+                        // Update IDB
+                        await saveMessageToDB(toStoredMessage(updatedMsg, currentConversationId));
+                    }
+
+                    // Update Conversation Summary (for history list)
+                    await updateConversationSummary(currentConversationId, session.dreamContent.slice(0, 100), permanentUrl);
+                }}
+            />
         </div>
     );
 
@@ -800,7 +844,7 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
     return (
         <div className="h-screen flex flex-col bg-[#F2F2F7] relative overflow-hidden">
             <div className="flex-none h-10 bg-gray-800 flex items-center justify-between px-4">
-                <span className="text-white text-sm font-medium">Dream Whisperer</span>
+                <span className="text-white text-sm font-medium">Oneiro AI</span>
                 <button onClick={() => setMobilePreview(true)} className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-sm">
                     <Smartphone size={16} />
                     <span>9:16</span>

@@ -28,7 +28,7 @@ export interface StoredMessage {
     conversationId: string;
     sender: 'user' | 'ai' | 'system';
     text: string;
-    type: 'text' | 'loading' | 'image';
+    type: 'text' | 'loading' | 'image' | 'card_generating' | 'card_ready';
     timestamp: Date;
     imageUrl?: string;
 }
@@ -144,6 +144,36 @@ export const getTodayConversation = async (): Promise<Conversation> => {
     });
 };
 
+export const getNextConversationIdForToday = async (maxPerDay = 5): Promise<{ id: string; sequence: number } | null> => {
+    const database = await initDB();
+    const baseId = getTodayId();
+
+    const conversations = await new Promise<Conversation[]>((resolve, reject) => {
+        const transaction = database.transaction(['conversations'], 'readonly');
+        const store = transaction.objectStore('conversations');
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(new Error('Failed to get conversations'));
+    });
+
+    const sameDay = conversations.filter(c => c.id === baseId || c.id.startsWith(`${baseId}-`));
+    const sequences = sameDay.map(c => {
+        if (c.id === baseId) return 1;
+        const parts = c.id.split('-');
+        const seq = Number(parts[3]);
+        return Number.isFinite(seq) && seq > 0 ? seq : 1;
+    });
+    const maxSequence = sequences.length > 0 ? Math.max(...sequences) : 0;
+    const nextSequence = maxSequence + 1;
+
+    if (nextSequence > maxPerDay) {
+        return null;
+    }
+
+    return { id: `${baseId}-${nextSequence}`, sequence: nextSequence };
+};
+
 /**
  * Get a specific conversation by date
  */
@@ -233,6 +263,14 @@ export const addMessage = async (message: StoredMessage): Promise<void> => {
                 conversation.updatedAt = new Date();
                 conversation.hasMessages = true;
                 conversationStore.put(conversation);
+            } else {
+                const newConversation: Conversation = {
+                    id: message.conversationId,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    hasMessages: true
+                };
+                conversationStore.add(newConversation);
             }
         };
 
@@ -293,6 +331,16 @@ export const updateConversationSummary = async (dateId: string, summary: string,
                 }
                 conversation.updatedAt = new Date();
                 store.put(conversation);
+            } else {
+                const newConversation: Conversation = {
+                    id: dateId,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    summary,
+                    imageUrl,
+                    hasMessages: true
+                };
+                store.add(newConversation);
             }
         };
 
@@ -342,7 +390,10 @@ export const getConversationsForMonth = async (year: number, month: number): Pro
                 .filter(c => c.id.startsWith(prefix) && c.hasMessages)
                 .forEach(c => {
                     const day = parseInt(c.id.split('-')[2], 10);
-                    dayMap.set(day, c);
+                    const existing = dayMap.get(day);
+                    if (!existing || new Date(c.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+                        dayMap.set(day, c);
+                    }
                 });
 
             resolve(dayMap);
@@ -536,6 +587,77 @@ export const syncDailyConversation = async (dateId: string): Promise<void> => {
  * Check for previous days that haven't been synced/archived and sync them.
  * Should be called on app start.
  */
+/**
+ * Try to fetch conversation from Supabase (restoring from JSON backup)
+ * Used when local IndexedDB is empty but cloud might have data.
+ */
+export const fetchConversationFromSupabase = async (dateId: string): Promise<StoredMessage[]> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    console.log(`[DreamSync] Attempting to restore ${dateId} from cloud...`);
+
+    const { data, error } = await supabase
+        .from('dream_conversations')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date_id', dateId)
+        .single();
+
+    if (error || !data || !data.conversation_history) {
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+            console.warn('[DreamSync] Fetch error:', error);
+        }
+        return [];
+    }
+
+    const messages = data.conversation_history as StoredMessage[];
+    if (!Array.isArray(messages) || messages.length === 0) return [];
+
+    console.log(`[DreamSync] Found ${messages.length} messages in cloud. Restoring...`);
+
+    // Restore to IndexedDB
+    const database = await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction(['conversations', 'messages'], 'readwrite');
+        const conversationStore = transaction.objectStore('conversations');
+        const messageStore = transaction.objectStore('messages');
+
+        // 1. Restore Conversation Metadata
+        const conversation: Conversation = {
+            id: dateId,
+            createdAt: new Date(data.created_at),
+            updatedAt: new Date(data.updated_at),
+            summary: data.summary,
+            imageUrl: data.image_url,
+            hasMessages: true
+        };
+        conversationStore.put(conversation);
+
+        // 2. Restore Messages
+        messages.forEach(msg => {
+            // Ensure dates are parsed back to Date objects if they became strings in JSON
+            const parsedMsg = {
+                ...msg,
+                timestamp: new Date(msg.timestamp)
+            };
+            messageStore.put(parsedMsg);
+        });
+
+        transaction.oncomplete = () => {
+            console.log(`[DreamSync] Successfully restored ${dateId} to local DB`);
+            // Return valid messages with Dates
+            resolve(messages.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
+        };
+
+        transaction.onerror = () => {
+            console.error('[DreamSync] Restore failed');
+            reject(new Error('Failed to restore data'));
+        };
+    });
+};
+
 export const checkAndSyncPreviousDays = async (): Promise<void> => {
     const today = getTodayId();
     const dates = await getConversationDates();

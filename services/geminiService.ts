@@ -1,9 +1,6 @@
 // Frontend service that calls Supabase Edge Function for dream analysis
 import { AppStage, AnalysisStyleId } from "../types";
-
-// Get Supabase URL from environment or use default
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+import { supabase } from "../lib/supabaseClient";
 
 // Conversation history for multi-turn chat
 let conversationHistory: Array<{ role: 'user' | 'model', text: string }> = [];
@@ -24,29 +21,33 @@ export const sendMessageToGemini = async (
   style: AnalysisStyleId
 ): Promise<string> => {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/dream-chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'apikey': SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({
+    // Use supabase.functions.invoke which properly handles JWT authentication
+    const { data, error } = await supabase.functions.invoke('dream-chat', {
+      body: {
         message,
         stage,
         dreamContext,
         style,
         history: conversationHistory
-      })
+      }
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Dream chat API error:', errorData);
-      throw new Error(errorData.error || 'Failed to get AI response');
+    if (error) {
+      console.error('Dream chat API error:', error);
+
+      // Handle billing-specific errors (FunctionsHttpError with 402 status)
+      if (error.message?.includes('402') || error.message?.includes('subscription')) {
+        throw new Error('Subscription required');
+      }
+
+      throw new Error(error.message || 'Failed to get AI response');
     }
 
-    const data = await response.json();
+    if (!data || !data.text) {
+      console.error('Invalid response from server:', data);
+      throw new Error('Invalid response from server');
+    }
+
     const aiResponse = data.text;
 
     // Update conversation history
@@ -56,6 +57,6 @@ export const sendMessageToGemini = async (
     return aiResponse;
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "The connection is weak. I could not interpret that.";
+    throw error;  // Re-throw to let caller handle the error properly
   }
 };

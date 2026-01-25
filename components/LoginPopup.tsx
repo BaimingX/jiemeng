@@ -100,7 +100,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ isOpen, onClose, language }) =>
                         </h2>
                         <p className="mt-2 text-sm text-slate-600">
                             {isSignUp
-                                ? (isEn ? 'Join Dream Decoder to save your dreams' : '加入梦境解码，保存你的梦境记录')
+                                ? (isEn ? 'Join Oneiro AI to save your dreams' : '加入 Oneiro AI，保存你的梦境记录')
                                 : (isEn ? 'Sign in to sync your dream journal' : '登录以同步你的梦境日记')}
                         </p>
                     </div>

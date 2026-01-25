@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
 declare const Deno: any;
 
@@ -8,9 +9,166 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+/**
+ * Check if user has billing access (subscription, lifetime, or free trials remaining)
+ * Returns: { allowed: boolean, reason?: string, trial_remaining?: number }
+ */
+async function checkBillingAccess(supabase: any, userId: string): Promise<{
+    allowed: boolean;
+    reason?: string;
+    trial_remaining?: number;
+    access_type?: string;
+}> {
+    // First check entitlements for subscription or lifetime access
+    const { data: entitlement, error: entError } = await supabase
+        .from('billing_entitlements')
+        .select('access, is_active, expires_at')
+        .eq('user_id', userId)
+        .eq('feature_key', 'dream_decoder')
+        .single()
+
+    if (!entError && entitlement) {
+        // Check lifetime access
+        if (entitlement.access === 'lifetime' && entitlement.is_active === true) {
+            return { allowed: true, access_type: 'lifetime' }
+        }
+
+        // Check subscription access
+        if (entitlement.access === 'subscription' && entitlement.is_active === true) {
+            const expiresAt = new Date(entitlement.expires_at)
+            if (expiresAt > new Date()) {
+                return { allowed: true, access_type: 'subscription' }
+            }
+        }
+    }
+
+    // Fall back to free trial check
+    const { data: trial, error: trialError } = await supabase
+        .from('billing_trials')
+        .select('trial_limit, trial_used')
+        .eq('user_id', userId)
+        .single()
+
+    if (trialError) {
+        // If no trial record exists, create one (for users created before billing system)
+        const { data: newTrial, error: insertError } = await supabase
+            .from('billing_trials')
+            .insert({ user_id: userId, trial_limit: 3, trial_used: 0 })
+            .select('trial_limit, trial_used')
+            .single()
+
+        if (insertError) {
+            console.error('Error creating trial record:', insertError)
+            return { allowed: false, reason: 'billing_error' }
+        }
+
+        return {
+            allowed: true,
+            access_type: 'free',
+            trial_remaining: newTrial.trial_limit - newTrial.trial_used
+        }
+    }
+
+    const remaining = trial.trial_limit - trial.trial_used
+
+    if (remaining > 0) {
+        return {
+            allowed: true,
+            access_type: 'free',
+            trial_remaining: remaining
+        }
+    }
+
+    return {
+        allowed: false,
+        reason: 'trial_exhausted',
+        trial_remaining: 0
+    }
+}
+
+/**
+ * Increment trial usage atomically using UPDATE...RETURNING
+ * Returns: { success: boolean, trial_used?: number, trial_limit?: number }
+ * Uses single atomic SQL to prevent race conditions under concurrency
+ */
+async function incrementTrialUsage(supabase: any, userId: string): Promise<{
+    success: boolean;
+    trial_used?: number;
+    trial_limit?: number;
+}> {
+    // First try using the RPC function (most reliable)
+    const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('increment_trial_usage', { p_user_id: userId })
+
+    if (!rpcError && rpcResult === true) {
+        // RPC succeeded, get updated counts
+        const { data: trial } = await supabase
+            .from('billing_trials')
+            .select('trial_limit, trial_used')
+            .eq('user_id', userId)
+            .single()
+
+        return {
+            success: true,
+            trial_used: trial?.trial_used,
+            trial_limit: trial?.trial_limit
+        }
+    }
+
+    if (!rpcError && rpcResult === false) {
+        // RPC returned false = limit reached
+        return { success: false }
+    }
+
+    // Fallback: If RPC doesn't exist, use atomic UPDATE...RETURNING pattern
+    // This single query atomically checks AND updates in one transaction
+    console.log('[DreamChat] RPC fallback: using atomic update')
+
+    // Use raw SQL for atomic UPDATE with condition
+    const { data: updated, error: updateError } = await supabase
+        .from('billing_trials')
+        .update({
+            trial_used: supabase.sql`trial_used + 1`,
+            updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .lt('trial_used', supabase.sql`trial_limit`)  // Only if under limit
+        .select('trial_used, trial_limit')
+        .single()
+
+    if (updateError) {
+        // If error, might be because no rows matched (limit reached)
+        // Double-check by fetching current state
+        const { data: trial } = await supabase
+            .from('billing_trials')
+            .select('trial_limit, trial_used')
+            .eq('user_id', userId)
+            .single()
+
+        if (trial && trial.trial_used >= trial.trial_limit) {
+            console.log(`[DreamChat] Trial limit reached: ${trial.trial_used}/${trial.trial_limit}`)
+            return { success: false }
+        }
+
+        console.error('Error updating trial:', updateError)
+        return { success: false }
+    }
+
+    if (!updated) {
+        // No rows updated = limit was already reached
+        return { success: false }
+    }
+
+    return {
+        success: true,
+        trial_used: updated.trial_used,
+        trial_limit: updated.trial_limit
+    }
+}
+
 // System instruction for the AI
 const SYSTEM_INSTRUCTION = `
-你是 "Dream Whisperer（梦语者）"，一个多维度的解梦伙伴。
+你是 "Oneiro AI"，一个多维度的解梦伙伴。
 你的核心任务是配合用户的选择，戴上不同的"透镜"（Persona），为他们的梦境提供有深度、有性格的解读。
 
 原则：
@@ -142,7 +300,7 @@ serve(async (req) => {
     try {
         const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
 
-        const { message, stage, dreamContext, style, history } = await req.json()
+        const { message, stage, dreamContext, style, history, client_message_id } = await req.json()
 
         if (!message) {
             console.error('Missing message in request');
@@ -159,6 +317,63 @@ serve(async (req) => {
                 { status: 500, headers: jsonHeaders }
             )
         }
+
+        // ============ BILLING CHECK ============
+        // Only check billing for WAITING_STYLE stage (when user initiates dream analysis)
+        // WAITING_DREAM is just collecting the dream, FOLLOW_UP is continuation
+        if (stage === AppStage.WAITING_STYLE) {
+            const supabaseUrl = Deno.env.get('SUPABASE_URL')
+            const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+            if (supabaseUrl && supabaseServiceKey) {
+                const authHeader = req.headers.get('Authorization')
+                if (authHeader) {
+                    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+                    const token = authHeader.replace('Bearer ', '')
+                    const { data: { user } } = await supabase.auth.getUser(token)
+
+                    if (user) {
+                        // Check billing access
+                        const billingStatus = await checkBillingAccess(supabase, user.id)
+
+                        if (!billingStatus.allowed) {
+                            console.log(`[DreamChat] User ${user.id} blocked: ${billingStatus.reason}`)
+                            return new Response(
+                                JSON.stringify({
+                                    error: 'subscription_required',
+                                    message: '免费试用次数已用完，请订阅以继续使用解梦服务。',
+                                    trial_remaining: 0
+                                }),
+                                { status: 402, headers: jsonHeaders }
+                            )
+                        }
+
+                        // If free user, increment trial usage
+                        if (billingStatus.access_type === 'free') {
+                            const trialResult = await incrementTrialUsage(supabase, user.id)
+                            if (!trialResult.success) {
+                                console.log(`[DreamChat] User ${user.id} failed to increment trial - limit reached`)
+                                return new Response(
+                                    JSON.stringify({
+                                        error: 'subscription_required',
+                                        reason: 'trial_exhausted',
+                                        message: '免费试用次数已用完，请订阅以继续使用解梦服务。',
+                                        trial_remaining: 0,
+                                        suggested_action: 'subscribe'
+                                    }),
+                                    { status: 402, headers: jsonHeaders }
+                                )
+                            }
+                            const remaining = (trialResult.trial_limit || 3) - (trialResult.trial_used || 0)
+                            console.log(`[DreamChat] User ${user.id} used trial ${trialResult.trial_used}/${trialResult.trial_limit}, remaining: ${remaining}`)
+                        } else {
+                            console.log(`[DreamChat] User ${user.id} has ${billingStatus.access_type} access`)
+                        }
+                    }
+                }
+            }
+        }
+        // ============ END BILLING CHECK ============
 
         // Determine Model
         // Use deepseek-reasoner for deep analysis, but deepseek-chat for quick follow-up conversation

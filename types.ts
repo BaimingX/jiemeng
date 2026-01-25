@@ -50,7 +50,9 @@ export enum Sender {
 export enum MessageType {
   TEXT = 'text',
   IMAGE = 'image',
-  LOADING = 'loading'
+  LOADING = 'loading',
+  CARD_GENERATING = 'card_generating',
+  CARD_READY = 'card_ready'
 }
 
 export interface Message {

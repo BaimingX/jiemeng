@@ -1,4 +1,4 @@
--- Dream Decoder Internal Database Schema
+-- Oneiro AI Internal Database Schema
 
 -- 1. Conversation Table (One per day per user)
 create table public.dream_conversations (

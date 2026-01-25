@@ -140,7 +140,8 @@ const DreamMapPanel: React.FC<DreamMapPanelProps> = ({ language, onSelectDate })
 
                             const isDream = hasDream(day);
                             const todayIs = isToday(day);
-                            const dateId = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            const defaultDateId = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            const dateId = dreamDays.get(day)?.id || defaultDateId;
 
                             return (
                                 <button
