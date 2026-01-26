@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import LandingHome from './components/LandingHome';
 import DreamGallery from './components/DreamGallery';
@@ -21,26 +21,26 @@ const LEGACY_LANGUAGE_STORAGE_KEY = 'dreamdecoder_language';
 const LANGUAGE_STORAGE_KEY = 'oneiroai_language';
 
 function App() {
-  // Default to Chinese, check localStorage
+  // Default to English, check localStorage
   const [language, setLanguage] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language | null;
       const legacyStored = localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY) as Language | null;
       if (stored || legacyStored) return (stored || legacyStored) as Language;
-      const browserLang = navigator.language?.toLowerCase() || '';
-      return browserLang.startsWith('zh') ? 'zh' : 'en';
+      return 'en';
     }
     return 'en';
   });
 
   const toggleLanguage = () => {
-    setLanguage(prev => {
-      const newLang = prev === 'en' ? 'zh' : 'en';
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, newLang);
-      localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY);
-      return newLang;
-    });
+    setLanguage(prev => (prev === 'en' ? 'zh' : 'en'));
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY);
+  }, [language]);
 
   return (
     <Layout language={language} onToggleLanguage={toggleLanguage}>

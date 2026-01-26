@@ -282,7 +282,7 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
         if (currentStage === AppStage.FOLLOW_UP) {
             setIsLoading(true);
             try {
-                const responseText = await sendMessageToGemini(text, currentStage, session.dreamContent, session.style);
+                const responseText = await sendMessageToGemini(text, currentStage, session.dreamContent, session.style, language);
                 setIsLoading(false);
                 await addMessage(Sender.AI, responseText);
 
@@ -321,7 +321,7 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
                 nextStage = AppStage.CONVERSATION;
             }
 
-            const responseText = await sendMessageToGemini(text, currentStage, dreamContext, style);
+            const responseText = await sendMessageToGemini(text, currentStage, dreamContext, style, language);
             setIsLoading(false);
             await addMessage(Sender.AI, responseText);
             setSession(prev => ({ ...prev, stage: nextStage }));
@@ -359,7 +359,7 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
         setIsLoading(true);
 
         try {
-            const responseText = await sendMessageToGemini(combinedDream, AppStage.WAITING_DREAM, combinedDream, AnalysisStyleId.UNSELECTED);
+            const responseText = await sendMessageToGemini(combinedDream, AppStage.WAITING_DREAM, combinedDream, AnalysisStyleId.UNSELECTED, language);
             setIsLoading(false);
             await addMessage(Sender.AI, responseText);
             setSession(prev => ({ ...prev, stage: AppStage.WAITING_STYLE }));
@@ -441,7 +441,7 @@ const Home: React.FC<HomeProps> = ({ language, onToggleLanguage }) => {
         }
 
         try {
-            const responseText = await sendMessageToGemini(text, session.stage, session.dreamContent, style);
+            const responseText = await sendMessageToGemini(text, session.stage, session.dreamContent, style, language);
             setIsLoading(false);
             await addMessage(Sender.AI, responseText);
 

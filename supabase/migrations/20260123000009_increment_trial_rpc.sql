@@ -21,7 +21,7 @@ BEGIN
     -- If no record found, create one
     IF NOT FOUND THEN
         INSERT INTO public.billing_trials (user_id, trial_limit, trial_used)
-        VALUES (p_user_id, 3, 1)
+        VALUES (p_user_id, 5, 1)
         ON CONFLICT (user_id) DO NOTHING;
         RETURN true;
     END IF;

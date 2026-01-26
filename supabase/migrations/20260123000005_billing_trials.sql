@@ -1,10 +1,10 @@
 -- Billing Trials Table
--- Tracks free trial usage (3 free AI dream interpretations)
+-- Tracks free trial usage (5 free AI dream interpretations)
 
 CREATE TABLE public.billing_trials (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   feature_key TEXT NOT NULL DEFAULT 'dream_decoder',
-  trial_limit INT NOT NULL DEFAULT 3,
+  trial_limit INT NOT NULL DEFAULT 5,
   trial_used INT NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -27,4 +27,4 @@ ADD CONSTRAINT check_trial_used_positive CHECK (trial_used >= 0);
 ALTER TABLE public.billing_trials 
 ADD CONSTRAINT check_trial_limit_positive CHECK (trial_limit > 0);
 
-COMMENT ON TABLE public.billing_trials IS 'Free trial usage tracking. Default 3 free uses per user.';
+COMMENT ON TABLE public.billing_trials IS 'Free trial usage tracking. Default 5 free uses per user.';

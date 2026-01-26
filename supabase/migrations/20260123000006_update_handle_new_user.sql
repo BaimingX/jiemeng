@@ -9,9 +9,9 @@ BEGIN
   VALUES (new.id, new.raw_user_meta_data->>'display_name', new.raw_user_meta_data->>'avatar_url')
   ON CONFLICT (id) DO NOTHING;
 
-  -- Initialize free trial (3 uses)
+  -- Initialize free trial (5 uses)
   INSERT INTO public.billing_trials (user_id, feature_key, trial_limit, trial_used)
-  VALUES (new.id, 'dream_decoder', 3, 0)
+  VALUES (new.id, 'dream_decoder', 5, 0)
   ON CONFLICT (user_id) DO NOTHING;
 
   -- Initialize entitlement as free user (inactive until they have a subscription/lifetime)

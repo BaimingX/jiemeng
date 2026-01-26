@@ -248,13 +248,13 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                                                                 {isEn ? 'Free Trials' : '剩余解梦'}
                                                             </span>
                                                             <span className="text-xs font-medium text-amber-400">
-                                                                {billingStatus?.trialRemaining ?? 3} / {billingStatus?.trialLimit ?? 3}
+                                                                {billingStatus?.trialRemaining ?? 5} / {billingStatus?.trialLimit ?? 5}
                                                             </span>
                                                         </div>
                                                         <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                                                             <div
                                                                 className="h-full bg-amber-400 rounded-full transition-all duration-300"
-                                                                style={{ width: `${((billingStatus?.trialRemaining ?? 3) / (billingStatus?.trialLimit ?? 3)) * 100}%` }}
+                                                                style={{ width: `${((billingStatus?.trialRemaining ?? 5) / (billingStatus?.trialLimit ?? 5)) * 100}%` }}
                                                             />
                                                         </div>
                                                     </>

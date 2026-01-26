@@ -1,5 +1,5 @@
 // Frontend service that calls Supabase Edge Function for dream analysis
-import { AppStage, AnalysisStyleId } from "../types";
+import { AppStage, AnalysisStyleId, Language } from "../types";
 import { supabase } from "../lib/supabaseClient";
 
 // Conversation history for multi-turn chat
@@ -18,11 +18,13 @@ export const sendMessageToGemini = async (
   message: string,
   stage: AppStage,
   dreamContext: string,
-  style: AnalysisStyleId
+  style: AnalysisStyleId,
+  language: Language
 ): Promise<string> => {
   try {
     // Use supabase.functions.invoke which properly handles JWT authentication
-    const { data, error } = await supabase.functions.invoke('dream-chat', {
+    const functionName = language === 'en' ? 'dream-chat-en' : 'dream-chat';
+    const { data, error } = await supabase.functions.invoke(functionName, {
       body: {
         message,
         stage,

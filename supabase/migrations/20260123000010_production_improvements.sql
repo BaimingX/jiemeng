@@ -16,9 +16,9 @@ ON public.dream_messages(user_id, client_message_id)
 WHERE client_message_id IS NOT NULL;
 
 -- 3. Backfill billing_trials for existing users who don't have records
--- This ensures legacy users get their 3 free trials
+-- This ensures legacy users get their 5 free trials
 INSERT INTO public.billing_trials (user_id, feature_key, trial_limit, trial_used)
-SELECT id, 'dream_decoder', 3, 0
+SELECT id, 'dream_decoder', 5, 0
 FROM auth.users
 WHERE id NOT IN (SELECT user_id FROM public.billing_trials)
 ON CONFLICT (user_id) DO NOTHING;

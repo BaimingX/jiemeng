@@ -76,11 +76,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchBillingStatus = async (userId?: string) => {
         try {
-            const targetUserId = userId;
+            let targetUserId = userId;
+            if (!targetUserId) {
+                const { data: { user } } = await supabase.auth.getUser();
+                targetUserId = user?.id;
+            }
+
+            if (!targetUserId) {
+                setBillingStatus(null);
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('v_billing_status')
                 .select('*')
                 .eq('feature_key', 'dream_decoder')
+                .eq('user_id', targetUserId)
                 .maybeSingle();
 
             if (data) {
@@ -88,8 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     access: data.access || 'free',
                     isActive: data.is_active || false,
                     expiresAt: data.expires_at,
-                    trialRemaining: data.trial_remaining ?? 3,
-                    trialLimit: data.trial_limit ?? 3,
+                    trialRemaining: data.trial_remaining ?? 5,
+                    trialLimit: data.trial_limit ?? 5,
                     trialUsed: data.trial_used ?? 0,
                     canUse: data.can_use ?? true,
                 });
@@ -146,8 +157,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     access: 'free',
                     isActive: false,
                     expiresAt: null,
-                    trialRemaining: 3,
-                    trialLimit: 3,
+                    trialRemaining: 5,
+                    trialLimit: 5,
                     trialUsed: 0,
                     canUse: true,
                 });

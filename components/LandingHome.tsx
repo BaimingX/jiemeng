@@ -314,7 +314,7 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
         const isMember = billingStatus?.access === 'lifetime' ||
             (billingStatus?.access === 'subscription' && billingStatus?.isActive);
         const canUse = billingStatus?.canUse ?? true;
-        const trialRemaining = billingStatus?.trialRemaining ?? 3;
+        const trialRemaining = billingStatus?.trialRemaining ?? 5;
 
         if (!isMember && (!canUse || (billingStatus?.access === 'free' && trialRemaining <= 0))) {
             showAlert(language === 'zh' ? "您的免费试用次数已用完。请订阅以继续使用。" : "You have used all your free trials. Please subscribe to continue.");
@@ -354,7 +354,7 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
         // No need to manually update profile.credits_balance
 
         try {
-            const response = await sendMessageToGemini(selectedStyle, AppStage.WAITING_STYLE, dreamInput, selectedStyle);
+            const response = await sendMessageToGemini(selectedStyle, AppStage.WAITING_STYLE, dreamInput, selectedStyle, language);
 
             setIsLoading(false);
             setAnalysisResult(response);
@@ -408,7 +408,7 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
         setMessages(prev => [...prev, loadingMsg]);
 
         try {
-            const response = await sendMessageToGemini(text, AppStage.FOLLOW_UP, dreamInput, selectedStyle || AnalysisStyleId.RATIONAL);
+            const response = await sendMessageToGemini(text, AppStage.FOLLOW_UP, dreamInput, selectedStyle || AnalysisStyleId.RATIONAL, language);
 
             setMessages(prev => prev.filter(m => m.id !== loadingMsgId));
 
@@ -572,8 +572,8 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
                                                     isMember ? null : (
                                                         <span>
                                                             {language === 'zh'
-                                                                ? `剩余次数: ${billingStatus?.trialRemaining ?? 3}`
-                                                                : `Credits: ${billingStatus?.trialRemaining ?? 3}`}
+                                                                ? `剩余次数: ${billingStatus?.trialRemaining ?? 5}`
+                                                                : `Credits: ${billingStatus?.trialRemaining ?? 5}`}
                                                         </span>
                                                     )
                                                 ) : (
