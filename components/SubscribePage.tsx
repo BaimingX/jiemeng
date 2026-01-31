@@ -6,6 +6,7 @@ import { Language } from '../types';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
 import Seo from './Seo';
+import LoginPopup from './LoginPopup';
 
 interface SubscribePageProps {
     language: Language;
@@ -29,6 +30,7 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
     const [prices, setPrices] = useState<PlanPrice[]>([]);
     const [currentPlanKey, setCurrentPlanKey] = useState<'monthly' | 'yearly' | null>(null);
     const [portalLoading, setPortalLoading] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     // Check for billing success/cancel query params
     useEffect(() => {
@@ -83,8 +85,8 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
 
     const handleSubscribe = async (planKey: 'monthly' | 'yearly' | 'lifetime') => {
         if (!user) {
-            // Redirect to login or show login modal
-            navigate('/?login=true');
+            // Show login modal instead of redirecting
+            setShowLoginModal(true);
             return;
         }
 
@@ -100,7 +102,7 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
 
     const handleOpenPortal = async () => {
         if (!user) {
-            navigate('/?login=true');
+            setShowLoginModal(true);
             return;
         }
 
@@ -118,14 +120,14 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
         {
             key: 'monthly' as const,
             name: isEn ? 'Monthly' : '月度订阅',
-            price: '$6',
+            price: '$7',
             period: isEn ? '/month' : '/月',
-            description: isEn ? 'Perfect for casual dreamers' : '适合偶尔解梦的用户',
+            description: isEn ? 'Flexible choice, cancel anytime' : '灵活选择，随时取消',
             features: [
                 isEn ? 'Unlimited dream interpretations' : '无限次解梦',
-                isEn ? 'All analysis styles' : '全部分析风格',
-                isEn ? 'Dream journal access' : '梦境日记功能',
-                isEn ? 'Priority support' : '优先客服支持',
+                isEn ? 'Deep dive analysis' : '深度追问分析',
+                isEn ? 'Custom dream cards' : '定制梦境卡片',
+                isEn ? 'Standard support' : '标准客户支持',
             ],
             popular: false,
             gradient: 'from-slate-500/20 to-slate-600/20',
@@ -135,17 +137,15 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
         {
             key: 'yearly' as const,
             name: isEn ? 'Yearly' : '年度订阅',
-            price: '$50',
+            price: '$60',
             period: isEn ? '/year' : '/年',
-            originalPrice: '$72',
-            savings: isEn ? 'Save 30%' : '省30%',
-            description: isEn ? 'Best value for regular dreamers' : '经常解梦的最佳选择',
+            originalPrice: '$84',
+            savings: isEn ? 'Save 29%' : '省29%',
+            description: isEn ? 'Best value, billing annually' : '年度超值之选，按年付费',
             features: [
-                isEn ? 'Unlimited dream interpretations' : '无限次解梦',
-                isEn ? 'All analysis styles' : '全部分析风格',
-                isEn ? 'Dream journal access' : '梦境日记功能',
-                isEn ? 'Dream map visualization' : '梦境地图可视化',
+                isEn ? 'Everything in Monthly' : '包含月度所有权益',
                 isEn ? 'Priority support' : '优先客服支持',
+                isEn ? 'Save 29% vs monthly' : '相比月付立省29%',
             ],
             popular: true,
             gradient: 'from-indigo-500/20 to-purple-500/20',
@@ -157,14 +157,12 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
             name: isEn ? 'Lifetime' : '终身会员',
             price: '$149',
             period: isEn ? ' one-time' : ' 一次性',
-            description: isEn ? 'Unlock forever, pay once' : '一次购买，永久解锁',
+            description: isEn ? 'Pay once, own forever' : '一次付费，永久拥有',
             features: [
-                isEn ? 'Unlimited dream interpretations' : '无限次解梦',
-                isEn ? 'All analysis styles' : '全部分析风格',
-                isEn ? 'Dream journal access' : '梦境日记功能',
-                isEn ? 'Dream map visualization' : '梦境地图可视化',
-                isEn ? 'All future features' : '所有未来新功能',
-                isEn ? 'Lifetime priority support' : '终身优先支持',
+                isEn ? 'Everything in Yearly' : '包含年度所有权益',
+                isEn ? 'VIP priority support' : 'VIP 专属客服支持',
+                isEn ? 'All future updates' : '未来所有功能更新',
+                isEn ? 'Best long-term value' : '最佳长期价值',
             ],
             popular: false,
             gradient: 'from-amber-500/20 to-orange-500/20',
@@ -295,76 +293,76 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
                                 transition={{ delay: 0.1 * index }}
                                 className={`relative bg-gradient-to-b ${plan.gradient} backdrop-blur-xl rounded-2xl border ${plan.borderColor} p-6 ${plan.popular ? 'md:-mt-4 md:mb-4' : ''}`}
                             >
-                            {/* Popular Badge */}
-                            {plan.popular && (
-                                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                    <div className="px-4 py-1 bg-indigo-500 rounded-full text-xs font-bold text-white uppercase tracking-wider">
-                                        {isEn ? 'Most Popular' : '最受欢迎'}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Plan Header */}
-                            <div className="text-center mb-6 pt-2">
-                                <h3 className={`text-lg font-semibold ${plan.textColor} mb-2`}>
-                                    {plan.name}
-                                </h3>
-                                <div className="flex items-baseline justify-center gap-1">
-                                    <span className="text-4xl font-bold text-white">{plan.price}</span>
-                                    <span className="text-slate-400 text-sm">{plan.period}</span>
-                                </div>
-                                {plan.originalPrice && (
-                                    <div className="mt-1 flex items-center justify-center gap-2">
-                                        <span className="text-sm text-slate-500 line-through">{plan.originalPrice}</span>
-                                        <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">
-                                            {plan.savings}
-                                        </span>
+                                {/* Popular Badge */}
+                                {plan.popular && (
+                                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                                        <div className="px-4 py-1 bg-indigo-500 rounded-full text-xs font-bold text-white uppercase tracking-wider">
+                                            {isEn ? 'Most Popular' : '最受欢迎'}
+                                        </div>
                                     </div>
                                 )}
-                                <p className="text-slate-400 text-xs mt-2">{plan.description}</p>
-                            </div>
 
-                            {/* Features */}
-                            <ul className="space-y-3 mb-6">
-                                {plan.features.map((feature, i) => (
-                                    <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
-                                        <Check size={16} className="text-green-400 flex-shrink-0" />
-                                        <span>{feature}</span>
-                                    </li>
-                                ))}
-                            </ul>
+                                {/* Plan Header */}
+                                <div className="text-center mb-6 pt-2">
+                                    <h3 className={`text-lg font-semibold ${plan.textColor} mb-2`}>
+                                        {plan.name}
+                                    </h3>
+                                    <div className="flex items-baseline justify-center gap-1">
+                                        <span className="text-4xl font-bold text-white">{plan.price}</span>
+                                        <span className="text-slate-400 text-sm">{plan.period}</span>
+                                    </div>
+                                    {plan.originalPrice && (
+                                        <div className="mt-1 flex items-center justify-center gap-2">
+                                            <span className="text-sm text-slate-500 line-through">{plan.originalPrice}</span>
+                                            <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">
+                                                {plan.savings}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <p className="text-slate-400 text-xs mt-2">{plan.description}</p>
+                                </div>
 
-                            {/* CTA Button */}
-                            <button
-                                onClick={() => handleSubscribe(plan.key)}
-                                disabled={loading !== null || !isPlanAvailable(plan.key) ||
-                                    (billingStatus?.access === 'lifetime') ||
-                                    (billingStatus?.access === 'subscription' && billingStatus?.isActive && plan.key !== 'lifetime')}
-                                className={`w-full py-3 rounded-xl font-medium transition-all duration-300 ${plan.popular
+                                {/* Features */}
+                                <ul className="space-y-3 mb-6">
+                                    {plan.features.map((feature, i) => (
+                                        <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
+                                            <Check size={16} className="text-green-400 flex-shrink-0" />
+                                            <span>{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                {/* CTA Button */}
+                                <button
+                                    onClick={() => handleSubscribe(plan.key)}
+                                    disabled={loading !== null || !isPlanAvailable(plan.key) ||
+                                        (billingStatus?.access === 'lifetime') ||
+                                        (billingStatus?.access === 'subscription' && billingStatus?.isActive && plan.key !== 'lifetime')}
+                                    className={`w-full py-3 rounded-xl font-medium transition-all duration-300 ${plan.popular
                                         ? 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/25'
                                         : plan.key === 'lifetime'
                                             ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30'
                                             : 'bg-white/10 hover:bg-white/15 text-white border border-white/10'
-                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                            >
-                                {loading === plan.key ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        {isEn ? 'Loading...' : '加载中...'}
-                                    </span>
-                                ) : !isPlanAvailable(plan.key) ? (
-                                    isEn ? 'Coming Soon' : '即将推出'
-                                ) : billingStatus?.access === 'lifetime' ? (
-                                    isEn ? 'Already Owned' : '已拥有'
-                                ) : billingStatus?.access === 'subscription' && billingStatus?.isActive && plan.key !== 'lifetime' ? (
-                                    isCurrentPlan
-                                        ? (isEn ? 'Current Plan' : '当前方案')
-                                        : (isEn ? 'Subscribed' : '已订阅')
-                                ) : (
-                                    isEn ? 'Get Started' : '立即开始'
-                                )}
-                            </button>
-                        </motion.div>
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                    {loading === plan.key ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            {isEn ? 'Loading...' : '加载中...'}
+                                        </span>
+                                    ) : !isPlanAvailable(plan.key) ? (
+                                        isEn ? 'Coming Soon' : '即将推出'
+                                    ) : billingStatus?.access === 'lifetime' ? (
+                                        isEn ? 'Already Owned' : '已拥有'
+                                    ) : billingStatus?.access === 'subscription' && billingStatus?.isActive && plan.key !== 'lifetime' ? (
+                                        isCurrentPlan
+                                            ? (isEn ? 'Current Plan' : '当前方案')
+                                            : (isEn ? 'Subscribed' : '已订阅')
+                                    ) : (
+                                        isEn ? 'Get Started' : '立即开始'
+                                    )}
+                                </button>
+                            </motion.div>
                         );
                     })}
                 </div>
@@ -381,8 +379,15 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
                         : '由 Stripe 提供安全支付。订阅可随时取消。'
                     }
                 </motion.p>
+
             </div>
-        </div>
+
+            <LoginPopup
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                language={language}
+            />
+        </div >
     );
 };
 

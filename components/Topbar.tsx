@@ -172,8 +172,8 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                             );
                         })}
 
-                        {/* Subscribe Button - Only for free/non-lifetime users */}
-                        {user && billingStatus?.access !== 'lifetime' && (
+                        {/* Subscribe Button - Visible to all except lifetime users */}
+                        {(!user || billingStatus?.access !== 'lifetime') && (
                             <button
                                 onClick={() => navigate('/subscribe')}
                                 className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/30 transition-all ml-2"

@@ -195,17 +195,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
 
             if (error) {
-                console.error('Checkout error:', error);
-                alert('Failed to open checkout. Please try again.');
+                console.error('Checkout error object:', error);
+                // Try to extract a meaningful message
+                let errorMessage = error.message;
+                if (typeof error === 'object' && error !== null && 'context' in error) {
+                    // @ts-ignore - Supabase error types can be tricky
+                    const context = (error as any).context;
+                    if (context && typeof context.json === 'function') {
+                        try {
+                            const body = await context.json();
+                            if (body && body.error) errorMessage = body.error;
+                        } catch (e) {
+                            console.error('Failed to parse error body', e);
+                        }
+                    }
+                }
+
+                alert(`Failed to open checkout: ${errorMessage || 'Unknown error'}`);
                 return;
             }
 
             if (data?.url) {
                 window.location.href = data.url;
             }
-        } catch (error) {
-            console.error('Checkout error:', error);
-            alert('Failed to open checkout. Please try again.');
+        } catch (error: any) {
+            console.error('Checkout exception:', error);
+            alert(`Failed to open checkout. ${error.message || 'Please try again.'}`);
         }
     };
 
@@ -270,8 +285,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut();
-        return { error };
+        // Optimistically clear local state immediately
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setBillingStatus(null);
+
+        // Aggressively clear Supabase data from localStorage
+        // This handles cases where the 403 error prevents graceful cleanup by the SDK
+        Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('sb-')) {
+                localStorage.removeItem(key);
+            }
+        });
+
+        try {
+            const { error } = await supabase.auth.signOut();
+            return { error };
+        } catch (err) {
+            console.error('Logout error:', err);
+            return { error: err };
+        }
     };
 
     const signInWithGoogle = async () => {

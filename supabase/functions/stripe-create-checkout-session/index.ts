@@ -72,7 +72,9 @@ serve(async (req) => {
             .select('stripe_price_id, mode')
             .eq('plan_key', plan_key)
             .eq('active', true)
-            .single()
+            .eq('active', true)
+            .limit(1)
+            .maybeSingle()
 
         if (planError || !planPrice) {
             console.error('Plan lookup error:', planError)
@@ -96,7 +98,8 @@ serve(async (req) => {
             .from('profiles')
             .select('stripe_customer_id')
             .eq('id', user.id)
-            .single()
+            .eq('id', user.id)
+            .maybeSingle()
 
         if (profile?.stripe_customer_id) {
             customerId = profile.stripe_customer_id
@@ -106,7 +109,8 @@ serve(async (req) => {
                 .from('billing_subscriptions')
                 .select('stripe_customer_id')
                 .eq('user_id', user.id)
-                .single()
+                .limit(1)
+                .maybeSingle()
 
             if (subscription?.stripe_customer_id) {
                 customerId = subscription.stripe_customer_id
@@ -174,7 +178,36 @@ serve(async (req) => {
             }
         }
 
-        const session = await stripe.checkout.sessions.create(sessionParams)
+        let session
+        try {
+            session = await stripe.checkout.sessions.create(sessionParams)
+        } catch (stripeError: any) {
+            // Handle case where customer exists in DB but not in Stripe (e.g. deleted in dashboard or env mismatch)
+            if (stripeError.code === 'resource_missing' && stripeError.param === 'customer') {
+                console.log(`Customer ${customerId} missing in Stripe. Re-creating...`)
+
+                // Create new customer
+                const newCustomer = await stripe.customers.create({
+                    email: user.email,
+                    metadata: {
+                        supabase_user_id: user.id,
+                    },
+                })
+                customerId = newCustomer.id
+
+                // Update database with new ID
+                await supabaseClient
+                    .from('profiles')
+                    .update({ stripe_customer_id: customerId })
+                    .eq('id', user.id)
+
+                // Retry session creation
+                sessionParams.customer = customerId
+                session = await stripe.checkout.sessions.create(sessionParams)
+            } else {
+                throw stripeError
+            }
+        }
 
         console.log(`[Checkout] Created session ${session.id} for user ${user.id}, plan: ${plan_key}`)
 
