@@ -528,7 +528,7 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
                                 <h1 className="text-4xl md:text-6xl font-serif text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-purple-200 to-indigo-200 tracking-tight pb-2">
                                     {isZh ? 'Oneiro AI 梦境解析' : 'Oneiro AI Dream Interpretation'}
                                 </h1>
-                                <p className="text-slate-400 max-w-lg mx-auto leading-relaxed text-sm md:text-base font-light tracking-wide">
+                                <p className="text-slate-400 max-w-2xl mx-auto leading-relaxed text-sm md:text-base font-light tracking-wide">
                                     {isZh
                                         ? 'AI 驱动的梦境含义、梦境符号与清醒梦洞见。'
                                         : 'AI-powered dream meaning, dream symbols, and lucid dreaming insights.'}

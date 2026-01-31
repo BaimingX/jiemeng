@@ -189,10 +189,10 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                         {/* Language Toggle - Compact */}
                         <button
                             onClick={onToggleLanguage}
-                            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+                            className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-colors font-medium text-sm"
                             title={isEn ? "Switch to Chinese" : "切换到中文"}
                         >
-                            <Globe size={18} />
+                            {isEn ? "EN" : "中"}
                         </button>
 
                         {/* Authentication State */}
@@ -347,8 +347,8 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                             </button>
                         )}
                     </div>
-                </div>
-            </header>
+                </div >
+            </header >
         </>
     );
 };

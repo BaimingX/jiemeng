@@ -14,6 +14,7 @@ import DreamMeaningIndexPage from './components/DreamMeaningIndexPage';
 import DreamTopicPage from './components/DreamTopicPage';
 import MarketsIndexPage from './components/MarketsIndexPage';
 import MarketPage from './components/MarketPage';
+import AuthCallback from './components/AuthCallback';
 import Layout from './components/Layout';
 import { Language } from './types';
 
@@ -59,6 +60,7 @@ function App() {
         <Route path="/dream-meaning/:slug" element={<DreamTopicPage language={language} />} />
         <Route path="/markets" element={<MarketsIndexPage language={language} />} />
         <Route path="/markets/:slug" element={<MarketPage language={language} />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
       </Routes>
     </Layout>
   );

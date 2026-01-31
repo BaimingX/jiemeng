@@ -19,6 +19,7 @@ interface AuthContextType {
     billingStatus: BillingStatus | null;
     loading: boolean;
     signInWithEmail: (email: string, password: string) => Promise<{ error: any }>;
+    signInWithGoogle: () => Promise<{ error: any }>;
     signUp: (email: string, password: string, displayName: string) => Promise<{ error: any }>;
     signOut: () => Promise<{ error: any }>;
     refreshBillingStatus: () => Promise<void>;
@@ -273,10 +274,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
     };
 
+    const signInWithGoogle = async () => {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`,
+            },
+        });
+        return { data, error };
+    };
+
     return (
         <AuthContext.Provider value={{
             session, user, profile, billingStatus, loading,
-            signInWithEmail, signUp, signOut, refreshBillingStatus, openCheckout, openCustomerPortal
+            signInWithEmail, signInWithGoogle, signUp, signOut, refreshBillingStatus, openCheckout, openCustomerPortal
         }}>
             {children}
         </AuthContext.Provider>
