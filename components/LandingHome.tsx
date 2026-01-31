@@ -221,6 +221,35 @@ const LandingHome: React.FC<LandingHomeProps> = ({ language }) => {
         };
     }, [searchParams]);
 
+    useEffect(() => {
+        if (searchParams.get('billing') !== 'success') return;
+
+        let cancelled = false;
+        const maxAttempts = 6;
+        const delayMs = 3000;
+
+        const runRefresh = async (attempt: number) => {
+            if (cancelled) return;
+            await refreshBillingStatus();
+            if (attempt < maxAttempts) {
+                window.setTimeout(() => runRefresh(attempt + 1), delayMs);
+            }
+        };
+
+        runRefresh(0);
+
+        // Clean up the URL (preserve other params)
+        const params = new URLSearchParams(window.location.search);
+        params.delete('billing');
+        const newSearch = params.toString();
+        const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, '', newUrl);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [searchParams, refreshBillingStatus]);
+
     // Auto-sync current conversation to cloud (Debounced)
     // Mirrors logic from Home.tsx to ensure first analysis is saved to history
     useEffect(() => {

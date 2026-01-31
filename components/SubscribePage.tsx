@@ -35,11 +35,31 @@ const SubscribePage: React.FC<SubscribePageProps> = ({ language }) => {
     // Check for billing success/cancel query params
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        if (params.get('billing') === 'success') {
-            refreshBillingStatus();
-            // Clean up the URL
-            window.history.replaceState({}, '', '/subscribe');
-        }
+        if (params.get('billing') !== 'success') return;
+
+        let cancelled = false;
+        const maxAttempts = 6;
+        const delayMs = 3000;
+
+        const runRefresh = async (attempt: number) => {
+            if (cancelled) return;
+            await refreshBillingStatus();
+            if (attempt < maxAttempts) {
+                window.setTimeout(() => runRefresh(attempt + 1), delayMs);
+            }
+        };
+
+        runRefresh(0);
+
+        // Clean up the URL (preserve other params)
+        params.delete('billing');
+        const newSearch = params.toString();
+        const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`;
+        window.history.replaceState({}, '', newUrl);
+
+        return () => {
+            cancelled = true;
+        };
     }, [refreshBillingStatus]);
 
     // Fetch available plans

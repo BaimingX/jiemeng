@@ -186,8 +186,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const { data, error } = await supabase.functions.invoke('stripe-create-checkout-session', {
                 body: {
                     plan_key: planKey,
-                    success_url: `${window.location.origin}/?billing=success`,
-                    cancel_url: `${window.location.origin}/?billing=canceled`,
+                    success_url: `${window.location.origin}/subscribe?billing=success`,
+                    cancel_url: `${window.location.origin}/subscribe?billing=canceled`,
                 },
                 headers: {
                     Authorization: `Bearer ${session.access_token}`,
