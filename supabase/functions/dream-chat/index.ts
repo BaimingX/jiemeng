@@ -10,16 +10,12 @@ const corsHeaders = {
 }
 
 /**
- * Check if user has billing access (subscription, lifetime, or free trials remaining)
- * Returns: { allowed: boolean, reason?: string, trial_remaining?: number }
+ * Check subscription/lifetime entitlements.
  */
-async function checkBillingAccess(supabase: any, userId: string): Promise<{
+async function checkEntitlementAccess(supabase: any, userId: string): Promise<{
     allowed: boolean;
-    reason?: string;
-    trial_remaining?: number;
     access_type?: string;
 }> {
-    // First check entitlements for subscription or lifetime access
     const { data: entitlement, error: entError } = await supabase
         .from('billing_entitlements')
         .select('access, is_active, expires_at')
@@ -28,12 +24,10 @@ async function checkBillingAccess(supabase: any, userId: string): Promise<{
         .single()
 
     if (!entError && entitlement) {
-        // Check lifetime access
         if (entitlement.access === 'lifetime' && entitlement.is_active === true) {
             return { allowed: true, access_type: 'lifetime' }
         }
 
-        // Check subscription access
         if (entitlement.access === 'subscription' && entitlement.is_active === true) {
             const expiresAt = new Date(entitlement.expires_at)
             if (expiresAt > new Date()) {
@@ -42,7 +36,18 @@ async function checkBillingAccess(supabase: any, userId: string): Promise<{
         }
     }
 
-    // Fall back to free trial check
+    return { allowed: false }
+}
+
+/**
+ * Check user-based trial access.
+ */
+async function checkUserTrialAccess(supabase: any, userId: string): Promise<{
+    allowed: boolean;
+    reason?: string;
+    trial_remaining?: number;
+    access_type?: string;
+}> {
     const { data: trial, error: trialError } = await supabase
         .from('billing_trials')
         .select('trial_limit, trial_used')
@@ -50,7 +55,6 @@ async function checkBillingAccess(supabase: any, userId: string): Promise<{
         .single()
 
     if (trialError) {
-        // If no trial record exists, create one (for users created before billing system)
         const { data: newTrial, error: insertError } = await supabase
             .from('billing_trials')
             .insert({ user_id: userId, trial_limit: 5, trial_used: 0 })
@@ -59,6 +63,57 @@ async function checkBillingAccess(supabase: any, userId: string): Promise<{
 
         if (insertError) {
             console.error('Error creating trial record:', insertError)
+            return { allowed: false, reason: 'billing_error' }
+        }
+
+        return {
+            allowed: true,
+            access_type: 'free',
+            trial_remaining: newTrial.trial_limit - newTrial.trial_used
+        }
+    }
+
+    const remaining = trial.trial_limit - trial.trial_used
+
+    if (remaining > 0) {
+        return {
+            allowed: true,
+            access_type: 'free',
+            trial_remaining: remaining
+        }
+    }
+
+    return {
+        allowed: false,
+        reason: 'trial_exhausted',
+        trial_remaining: 0
+    }
+}
+
+/**
+ * Check device-based trial access.
+ */
+async function checkDeviceTrialAccess(supabase: any, deviceId: string): Promise<{
+    allowed: boolean;
+    reason?: string;
+    trial_remaining?: number;
+    access_type?: string;
+}> {
+    const { data: trial, error: trialError } = await supabase
+        .from('device_trials')
+        .select('trial_limit, trial_used')
+        .eq('device_id', deviceId)
+        .single()
+
+    if (trialError) {
+        const { data: newTrial, error: insertError } = await supabase
+            .from('device_trials')
+            .insert({ device_id: deviceId, trial_limit: 5, trial_used: 0 })
+            .select('trial_limit, trial_used')
+            .single()
+
+        if (insertError) {
+            console.error('Error creating device trial record:', insertError)
             return { allowed: false, reason: 'billing_error' }
         }
 
@@ -120,42 +175,137 @@ async function incrementTrialUsage(supabase: any, userId: string): Promise<{
         return { success: false }
     }
 
-    // Fallback: If RPC doesn't exist, use atomic UPDATE...RETURNING pattern
-    // This single query atomically checks AND updates in one transaction
-    console.log('[DreamChat] RPC fallback: using atomic update')
+    if (rpcError) {
+        console.warn('[DreamChat] increment_trial_usage RPC error:', rpcError)
+    }
 
-    // Use raw SQL for atomic UPDATE with condition
+    console.log('[DreamChat] RPC fallback: using optimistic update')
+
+    const { data: trial, error: fetchError } = await supabase
+        .from('billing_trials')
+        .select('trial_limit, trial_used')
+        .eq('user_id', userId)
+        .single()
+
+    if (fetchError || !trial) {
+        console.error('Error fetching trial for fallback:', fetchError)
+        return { success: false }
+    }
+
+    if (trial.trial_used >= trial.trial_limit) {
+        return { success: false }
+    }
+
+    const nextUsed = trial.trial_used + 1
     const { data: updated, error: updateError } = await supabase
         .from('billing_trials')
         .update({
-            trial_used: supabase.sql`trial_used + 1`,
+            trial_used: nextUsed,
             updated_at: new Date().toISOString()
         })
         .eq('user_id', userId)
-        .lt('trial_used', supabase.sql`trial_limit`)  // Only if under limit
+        .eq('trial_used', trial.trial_used)
         .select('trial_used, trial_limit')
         .single()
 
-    if (updateError) {
-        // If error, might be because no rows matched (limit reached)
-        // Double-check by fetching current state
-        const { data: trial } = await supabase
+    if (updateError || !updated) {
+        const { data: latest } = await supabase
             .from('billing_trials')
             .select('trial_limit, trial_used')
             .eq('user_id', userId)
             .single()
 
-        if (trial && trial.trial_used >= trial.trial_limit) {
-            console.log(`[DreamChat] Trial limit reached: ${trial.trial_used}/${trial.trial_limit}`)
+        if (latest && latest.trial_used >= latest.trial_limit) {
+            console.log(`[DreamChat] Trial limit reached: ${latest.trial_used}/${latest.trial_limit}`)
             return { success: false }
         }
 
-        console.error('Error updating trial:', updateError)
+        console.error('Error updating trial fallback:', updateError)
         return { success: false }
     }
 
-    if (!updated) {
-        // No rows updated = limit was already reached
+    return {
+        success: true,
+        trial_used: updated.trial_used,
+        trial_limit: updated.trial_limit
+    }
+}
+
+/**
+ * Increment device trial usage atomically using UPDATE...RETURNING
+ */
+async function incrementDeviceTrialUsage(supabase: any, deviceId: string): Promise<{
+    success: boolean;
+    trial_used?: number;
+    trial_limit?: number;
+}> {
+    const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('increment_device_trial_usage', { p_device_id: deviceId })
+
+    if (!rpcError && rpcResult === true) {
+        const { data: trial } = await supabase
+            .from('device_trials')
+            .select('trial_limit, trial_used')
+            .eq('device_id', deviceId)
+            .single()
+
+        return {
+            success: true,
+            trial_used: trial?.trial_used,
+            trial_limit: trial?.trial_limit
+        }
+    }
+
+    if (!rpcError && rpcResult === false) {
+        return { success: false }
+    }
+
+    if (rpcError) {
+        console.warn('[DreamChat] increment_device_trial_usage RPC error:', rpcError)
+    }
+
+    console.log('[DreamChat] Device RPC fallback: using optimistic update')
+
+    const { data: trial, error: fetchError } = await supabase
+        .from('device_trials')
+        .select('trial_limit, trial_used')
+        .eq('device_id', deviceId)
+        .single()
+
+    if (fetchError || !trial) {
+        console.error('Error fetching device trial for fallback:', fetchError)
+        return { success: false }
+    }
+
+    if (trial.trial_used >= trial.trial_limit) {
+        return { success: false }
+    }
+
+    const nextUsed = trial.trial_used + 1
+    const { data: updated, error: updateError } = await supabase
+        .from('device_trials')
+        .update({
+            trial_used: nextUsed,
+            updated_at: new Date().toISOString()
+        })
+        .eq('device_id', deviceId)
+        .eq('trial_used', trial.trial_used)
+        .select('trial_used, trial_limit')
+        .single()
+
+    if (updateError || !updated) {
+        const { data: latest } = await supabase
+            .from('device_trials')
+            .select('trial_limit, trial_used')
+            .eq('device_id', deviceId)
+            .single()
+
+        if (latest && latest.trial_used >= latest.trial_limit) {
+            console.log(`[DreamChat] Device trial limit reached: ${latest.trial_used}/${latest.trial_limit}`)
+            return { success: false }
+        }
+
+        console.error('Error updating device trial fallback:', updateError)
         return { success: false }
     }
 
@@ -300,7 +450,8 @@ serve(async (req) => {
     try {
         const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
 
-        const { message, stage, dreamContext, style, history, client_message_id } = await req.json()
+        const { message, stage, dreamContext, style, history, client_message_id, device_id } = await req.json()
+        let trialRemaining: number | undefined;
 
         if (!message) {
             console.error('Missing message in request');
@@ -343,26 +494,52 @@ serve(async (req) => {
                     const { data: { user } } = await supabase.auth.getUser(token)
 
                     if (user) {
-                        // Check billing access
-                        const billingStatus = await checkBillingAccess(supabase, user.id)
+                        const platform = String(user.user_metadata?.platform || '').toLowerCase()
+                        const deviceId = typeof user.user_metadata?.device_id === 'string' ? user.user_metadata.device_id : (typeof device_id === 'string' ? device_id : null)
+                        const isMobilePlatform = platform === 'ios' || platform === 'android'
+                        const isGuestUser = user.is_anonymous === true || user.user_metadata?.is_guest === true
 
-                        if (!billingStatus.allowed) {
-                            console.log(`[DreamChat] User ${user.id} blocked: ${billingStatus.reason}`)
+                        if (isGuestUser && !isMobilePlatform) {
                             return new Response(
                                 JSON.stringify({
-                                    error: 'subscription_required',
-                                    message: '免费试用次数已用完，请订阅以继续使用解梦服务。',
-                                    trial_remaining: 0
+                                    error: 'anonymous_not_allowed',
+                                    message: '匿名访问仅限移动端，请登录后使用。',
                                 }),
-                                { status: 402, headers: jsonHeaders }
+                                { status: 403, headers: jsonHeaders }
                             )
                         }
 
-                        // If free user, increment trial usage
-                        if (billingStatus.access_type === 'free') {
-                            const trialResult = await incrementTrialUsage(supabase, user.id)
+                        const entitlementStatus = await checkEntitlementAccess(supabase, user.id)
+
+                        if (entitlementStatus.allowed) {
+                            console.log(`[DreamChat] User ${user.id} has ${entitlementStatus.access_type} access`)
+                        } else if (isMobilePlatform) {
+                            if (!deviceId) {
+                                return new Response(
+                                    JSON.stringify({
+                                        error: 'device_id_required',
+                                        message: '请更新App以继续使用试用次数。',
+                                    }),
+                                    { status: 400, headers: jsonHeaders }
+                                )
+                            }
+
+                            const deviceStatus = await checkDeviceTrialAccess(supabase, deviceId)
+                            if (!deviceStatus.allowed) {
+                                console.log(`[DreamChat] Device ${deviceId} blocked: ${deviceStatus.reason}`)
+                                return new Response(
+                                    JSON.stringify({
+                                        error: 'subscription_required',
+                                        message: '免费试用次数已用完，请订阅以继续使用解梦服务。',
+                                        trial_remaining: 0
+                                    }),
+                                    { status: 402, headers: jsonHeaders }
+                                )
+                            }
+
+                            const trialResult = await incrementDeviceTrialUsage(supabase, deviceId)
                             if (!trialResult.success) {
-                                console.log(`[DreamChat] User ${user.id} failed to increment trial - limit reached`)
+                                console.log(`[DreamChat] Device ${deviceId} failed to increment trial - limit reached`)
                                 return new Response(
                                     JSON.stringify({
                                         error: 'subscription_required',
@@ -375,9 +552,41 @@ serve(async (req) => {
                                 )
                             }
                             const remaining = (trialResult.trial_limit || 5) - (trialResult.trial_used || 0)
-                            console.log(`[DreamChat] User ${user.id} used trial ${trialResult.trial_used}/${trialResult.trial_limit}, remaining: ${remaining}`)
+                            trialRemaining = remaining
+                            console.log(`[DreamChat] Device ${deviceId} used trial ${trialResult.trial_used}/${trialResult.trial_limit}, remaining: ${remaining}`)
                         } else {
-                            console.log(`[DreamChat] User ${user.id} has ${billingStatus.access_type} access`)
+                            const billingStatus = await checkUserTrialAccess(supabase, user.id)
+                            if (!billingStatus.allowed) {
+                                console.log(`[DreamChat] User ${user.id} blocked: ${billingStatus.reason}`)
+                                return new Response(
+                                    JSON.stringify({
+                                        error: 'subscription_required',
+                                        message: '免费试用次数已用完，请订阅以继续使用解梦服务。',
+                                        trial_remaining: 0
+                                    }),
+                                    { status: 402, headers: jsonHeaders }
+                                )
+                            }
+
+                            if (billingStatus.access_type === 'free') {
+                                const trialResult = await incrementTrialUsage(supabase, user.id)
+                                if (!trialResult.success) {
+                                    console.log(`[DreamChat] User ${user.id} failed to increment trial - limit reached`)
+                                    return new Response(
+                                        JSON.stringify({
+                                            error: 'subscription_required',
+                                            reason: 'trial_exhausted',
+                                            message: '免费试用次数已用完，请订阅以继续使用解梦服务。',
+                                            trial_remaining: 0,
+                                            suggested_action: 'subscribe'
+                                        }),
+                                        { status: 402, headers: jsonHeaders }
+                                    )
+                                }
+                                const remaining = (trialResult.trial_limit || 5) - (trialResult.trial_used || 0)
+                                trialRemaining = remaining
+                                console.log(`[DreamChat] User ${user.id} used trial ${trialResult.trial_used}/${trialResult.trial_limit}, remaining: ${remaining}`)
+                            }
                         }
                     }
                 }
@@ -529,7 +738,7 @@ Instruction:
         }
 
         return new Response(
-            JSON.stringify({ text }),
+            JSON.stringify({ text, trial_remaining: trialRemaining }),
             { headers: jsonHeaders }
         )
 
