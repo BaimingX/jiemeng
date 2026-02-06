@@ -8,6 +8,7 @@
     "server": "tsx server.ts",
     "sitemap": "tsx scripts/generate-sitemap.ts",
     "prerender": "tsx scripts/prerender.ts",
+    "indexnow": "tsx scripts/indexnow.ts",
     "build": "tsx scripts/generate-sitemap.ts && vite build && tsx scripts/prerender.ts",
     "preview": "vite preview"
   },
