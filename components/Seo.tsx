@@ -35,7 +35,9 @@ function setMeta(attr: 'name' | 'property', key: string, content: string) {
 }
 
 function removeSeoLinks() {
-    document.head.querySelectorAll('link[data-seo="true"]').forEach((el) => el.remove());
+    document.head
+        .querySelectorAll('link[rel="canonical"], link[rel="alternate"][hreflang], link[data-seo="true"]')
+        .forEach((el) => el.remove());
 }
 
 function addLink(rel: string, href: string, attrs: Record<string, string> = {}) {

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "server": "tsx server.ts",
-    "build": "vite build",
+    "sitemap": "tsx scripts/generate-sitemap.ts",
+    "prerender": "tsx scripts/prerender.ts",
+    "build": "tsx scripts/generate-sitemap.ts && vite build && tsx scripts/prerender.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "cors": "^2.8.5",
     "express": "^5.2.1",
+    "puppeteer": "^24.23.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

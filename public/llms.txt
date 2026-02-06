@@ -12,10 +12,7 @@ English, Chinese
 ## Primary URLs
 - https://oneiroai.com/
 - https://oneiroai.com/gallery
-- https://oneiroai.com/map
-- https://oneiroai.com/journal
 - https://oneiroai.com/subscribe
-- https://oneiroai.com/profile
 - https://oneiroai.com/privacy
 - https://oneiroai.com/terms
 - https://oneiroai.com/faq
