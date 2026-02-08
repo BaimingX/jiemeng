@@ -13,13 +13,15 @@ module.exports = {
                 'dream-text': '#FFFFFF',
                 'dream-text-muted': '#9CA3AF',
 
-                // HTML Design Match
+                // Elegant book-like palette
                 'primary': '#5D5CDE',
-                'bg-light': '#FDFBF7',
+                'bg-light': '#F5F2EB',      // Warmer parchment base
                 'bg-dark': '#0B0C15',
-                'paper-light': '#FFFDF5',
+                'paper-light': '#FFFCF5',   // Refined cream paper
+                'paper-warm': '#FFFDF8',    // Warm ivory for cards
                 'paper-dark': '#1E1E24',
                 'accent-gold': '#C6A87C',
+                'border-warm': 'rgba(195, 180, 155, 0.5)', // Warm border
             },
             fontFamily: {
                 sans: ['System', 'sans-serif'], // Mapping Lato to system for now

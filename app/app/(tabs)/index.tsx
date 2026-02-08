@@ -1,210 +1,143 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    FlatList,
     TouchableOpacity,
+    ScrollView,
     StatusBar,
-    ActivityIndicator,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert
+    Image,
+    Platform
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Check, Brain, HeartPulse, Globe, Sparkles, PenTool } from 'lucide-react-native';
-import { useAuth } from '../../context/AuthContext';
-import { loadJournalEntries, addJournalEntry } from '../../lib/dreamJournal';
-import JournalCard, { JournalEntry } from '../../components/JournalCard';
-import JournalHeader from '../../components/JournalHeader';
-import { callDreamChat, AppStage } from '../../lib/dreamService';
-
-// Updated to match HTML colors/styles
-const PERSPECTIVE_OPTIONS = [
-    { id: 'RATIONAL', label: 'Rational', icon: Brain, color: '#4338CA', bg: '#EEF2FF' },
-    { id: 'PSYCHOLOGY', label: 'Psychology', icon: HeartPulse, color: '#B45309', bg: '#FFFBEB' },
-    { id: 'FOLK', label: 'Cultural', icon: Globe, color: '#0F766E', bg: '#F0FDFA' },
-    { id: 'CREATIVE', label: 'Creative', icon: Sparkles, color: '#BE123C', bg: '#FFF1F2' },
-];
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { Sparkles, Plus, ChevronRight, Palette } from 'lucide-react-native';
+import { loadJournalEntries } from '../../lib/dreamJournal';
+import { JournalEntry } from '../../components/JournalCard';
 
 export default function HomeScreen() {
-    const insets = useSafeAreaInsets();
-    const { session } = useAuth();
+    const router = useRouter();
+    const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([]);
 
-    // State
-    const [entries, setEntries] = useState<JournalEntry[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isWriting, setIsWriting] = useState(false);
-
-    // Writing State
-    const [dreamText, setDreamText] = useState('');
-    const [selectedStyle, setSelectedStyle] = useState('CREATIVE'); // Default to creative as per design vibe
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-    const isGuest = useMemo(() => {
-        const user = session?.user;
-        return Boolean(user?.is_anonymous || user?.user_metadata?.is_guest);
-    }, [session]);
-
-    useEffect(() => {
-        loadData();
-    }, []);
+    // Reload data when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [])
+    );
 
     const loadData = async () => {
-        setIsLoading(true);
         const data = await loadJournalEntries();
-        // transform to view model
-        const viewModels: JournalEntry[] = data.map(d => ({
+        // Take top 2
+        setRecentEntries(data.slice(0, 2).map(d => ({
             id: d.id,
             dream: d.dream,
             analysis: d.analysis,
             date: d.createdAt,
-            style: d.style as any,
-            // Mock data for card display logic if missing
-            imageUrl: undefined,
-            // We can add logic here to properly split date into day/month etc if needed, but JournalCard handles it
-        }));
-        setEntries(viewModels);
-        setIsLoading(false);
+            style: d.style as any
+        })));
     };
 
-    const handleSaveDream = async () => {
-        if (!dreamText.trim()) return;
-
-        setIsAnalyzing(true);
-        try {
-            // "Analysis is small aspect, encourage recording" - Save first logic
-            // But we need the analysis for the card... let's just do it.
-            const response = await callDreamChat(
-                dreamText,
-                AppStage.WAITING_STYLE,
-                dreamText,
-                selectedStyle,
-                []
-            );
-
-            if (response.text) {
-                await addJournalEntry({
-                    id: Date.now().toString(),
-                    createdAt: new Date().toISOString(),
-                    dream: dreamText,
-                    analysis: response.text,
-                    style: selectedStyle,
-                    isGuest: isGuest
-                });
-
-                await loadData(); // Reload list
-                setDreamText('');
-                setIsWriting(false);
-                setIsAnalyzing(false);
-            }
-        } catch (e) {
-            Alert.alert("Error", "Failed to save dream.");
-            setIsAnalyzing(false);
-        }
-    };
-
-    const renderContent = () => {
-        if (isWriting) {
-            return (
-                <View style={styles.writeContainer}>
-                    <View style={styles.writeHeader}>
-                        <TouchableOpacity onPress={() => setIsWriting(false)} style={styles.iconBtn}>
-                            <X size={26} color="#4B5563" />
-                        </TouchableOpacity>
-                        <Text style={styles.writeTitle}>New Entry</Text>
-                        <TouchableOpacity
-                            onPress={handleSaveDream}
-                            disabled={isAnalyzing || !dreamText.trim()}
-                            style={[styles.saveBtn, (!dreamText.trim() || isAnalyzing) && { opacity: 0.5 }]}
-                        >
-                            {isAnalyzing ? (
-                                <ActivityIndicator size="small" color="#FFF" />
-                            ) : (
-                                <Text style={styles.saveBtnText}>Save</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-
-                    <TextInput
-                        style={styles.input}
-                        multiline
-                        placeholder="What did you dream about? Capturing the details..."
-                        placeholderTextColor="#9CA3AF"
-                        value={dreamText}
-                        onChangeText={setDreamText}
-                        textAlignVertical="top"
-                        autoFocus
-                    />
-
-                    <View style={styles.styleSelector}>
-                        <Text style={styles.styleLabel}>Choose a Perspective</Text>
-                        <View style={styles.styleRow}>
-                            {PERSPECTIVE_OPTIONS.map(opt => {
-                                const isSelected = selectedStyle === opt.id;
-                                return (
-                                    <TouchableOpacity
-                                        key={opt.id}
-                                        onPress={() => setSelectedStyle(opt.id)}
-                                        style={[
-                                            styles.styleChip,
-                                            isSelected ? { backgroundColor: opt.color, borderColor: opt.color } : { borderColor: 'rgba(0,0,0,0.1)' }
-                                        ]}
-                                    >
-                                        <Text style={[styles.styleChipText, isSelected && { color: '#FFF' }]}>
-                                            {opt.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )
-                            })}
-                        </View>
-                    </View>
-                </View>
-            )
-        }
-
-        return (
-            <>
-                <JournalHeader />
-                <View style={[styles.listContainer, { paddingBottom: 100 }]}>
-                    {isLoading ? (
-                        <ActivityIndicator size="large" color="#C6A87C" style={{ marginTop: 40 }} />
-                    ) : entries.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <View style={styles.emptyIconCircle}>
-                                <PenTool size={32} color="#C6A87C" />
-                            </View>
-                            <Text style={styles.emptyTitle}>Start Your Journal</Text>
-                            <Text style={styles.emptyDesc}>
-                                Your subconscious is waiting. Tap the + button to record your first dream.
-                            </Text>
-                        </View>
-                    ) : (
-                        <FlatList
-                            data={entries}
-                            keyExtractor={item => item.id}
-                            renderItem={({ item }) => (
-                                <JournalCard entry={item} onPress={() => { /* Navigate to detail */ }} />
-                            )}
-                            contentContainerStyle={styles.listContent}
-                            showsVerticalScrollIndicator={false}
-                        />
-                    )}
-                </View>
-            </>
-        );
+    const formatDate = () => {
+        const date = new Date();
+        const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+        return date.toLocaleDateString('en-GB', options);
     };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FDFBF7" />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={{ flex: 1 }}
-            >
-                {renderContent()}
-            </KeyboardAvoidingView>
+            <StatusBar barStyle="dark-content" backgroundColor="#F5F2EB" />
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerIcon}>
+                        <Palette size={24} color="#C6A87C" style={{ opacity: 0.6 }} />
+                    </View>
+                    <Text style={styles.headerTitle}>Dreaming...</Text>
+                    <Text style={styles.headerDate}>{formatDate()}</Text>
+                </View>
+
+                {/* Hero Section */}
+                <View style={styles.heroContainer}>
+                    <View style={styles.heroCardGroup}>
+                        {/* Background decoration */}
+                        <View style={styles.heroBgDecoration} />
+
+                        {/* Main Card */}
+                        <View style={styles.heroCard}>
+                            <View style={styles.heroContent}>
+                                <Text style={styles.heroTitle}>
+                                    How was your dream{'\n'}last night?
+                                </Text>
+                                <Text style={styles.heroSubtitle}>
+                                    Tap below to start your journey.
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.recordBtnContainer}
+                                activeOpacity={0.9}
+                                onPress={() => router.push('/create')}
+                            >
+                                <View style={styles.recordBtn}>
+                                    <Plus size={32} color="#FFFFFF" strokeWidth={1.5} />
+                                </View>
+                                <Text style={styles.recordBtnText}>RECORD DREAM</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Recent Memories */}
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Recent Memories</Text>
+                        <TouchableOpacity onPress={() => router.push('/gallery')}>
+                            <Text style={styles.viewJournalBtn}>VIEW JOURNAL</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.recentList}>
+                        {recentEntries.length > 0 ? (
+                            recentEntries.map((entry, index) => {
+                                const dateObj = new Date(entry.date);
+                                const day = dateObj.getDate().toString().padStart(2, '0');
+                                const month = dateObj.toLocaleString('en-US', { month: 'short' });
+                                const isOpacity = index === 1; // Second item opacity style
+
+                                return (
+                                    <TouchableOpacity
+                                        key={entry.id}
+                                        style={[styles.recentCard, isOpacity && { opacity: 0.8 }]}
+                                        onPress={() => router.push('/gallery')}
+                                    >
+                                        <View style={styles.recentImagePlaceholder}>
+                                            {/* Placeholder visualization since we might not have images yet */}
+                                            <View style={{ flex: 1, backgroundColor: '#E5E5E5' }} />
+                                        </View>
+
+                                        <View style={styles.recentInfo}>
+                                            <Text style={styles.recentDate}>{index === 0 ? 'YESTERDAY' : `${day} ${month}`}</Text>
+                                            <Text style={styles.recentTitle} numberOfLines={1}>
+                                                {entry.dream.substring(0, 20) || "Untitled Dream"}...
+                                            </Text>
+                                            <Text style={styles.recentSnippet} numberOfLines={1}>
+                                                {entry.dream}
+                                            </Text>
+                                        </View>
+
+                                        <ChevronRight size={20} color="#D1D5DB" />
+                                    </TouchableOpacity>
+                                );
+                            })
+                        ) : (
+                            <Text style={styles.noRecentText}>No recent dreams recorded.</Text>
+                        )}
+                    </View>
+                </View>
+
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -212,119 +145,197 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FDFBF7', // bg-light
+        backgroundColor: '#F5F2EB', // Warmer parchment base for contrast
     },
-    listContainer: {
-        flex: 1,
+    scrollContent: {
+        paddingBottom: 120,
     },
-    listContent: {
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        paddingBottom: 120, // Space for tab bar
+    header: {
+        alignItems: 'center',
+        paddingTop: 24,
+        paddingBottom: 24,
+        paddingHorizontal: 24,
     },
-    emptyState: {
-        flex: 1,
+    headerIcon: {
+        marginBottom: 8,
+    },
+    headerTitle: {
+        fontSize: 32,
+        fontFamily: 'serif',
+        fontStyle: 'italic',
+        color: '#111827',
+        marginBottom: 4,
+    },
+    headerDate: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#C6A87C',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+        opacity: 0.8,
+    },
+    heroContainer: {
+        paddingHorizontal: 24,
+        marginBottom: 40,
+    },
+    heroCardGroup: {
+        position: 'relative',
+    },
+    heroBgDecoration: {
+        position: 'absolute',
+        top: 8,
+        left: 8,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255, 252, 245, 0.6)',
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(210, 200, 180, 0.4)',
+    },
+    heroCard: {
+        backgroundColor: '#FFFCF5', // Elegant cream paper
+        borderRadius: 32,
+        paddingVertical: 50,
+        paddingHorizontal: 30,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 40,
-        marginTop: 60,
+        minHeight: 340,
+        // Enhanced shadow for book-like depth
+        shadowColor: '#8B7355',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.12,
+        shadowRadius: 24,
+        elevation: 8,
+        marginHorizontal: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(200, 185, 160, 0.35)',
     },
-    emptyIconCircle: {
+    heroContent: {
+        alignItems: 'center',
+        marginBottom: 32,
+        zIndex: 10,
+    },
+    heroTitle: {
+        fontSize: 28, // Matches text-2xl/4xl scale better from ref
+        fontFamily: 'serif',
+        color: '#374151',
+        textAlign: 'center',
+        lineHeight: 36,
+        marginBottom: 12,
+    },
+    heroSubtitle: {
+        fontSize: 14,
+        fontFamily: 'serif',
+        fontStyle: 'italic',
+        color: '#9CA3AF',
+        textAlign: 'center',
+        letterSpacing: 0.5,
+    },
+    recordBtnContainer: {
+        alignItems: 'center',
+        gap: 16,
+        marginTop: 20,
+    },
+    recordBtn: {
+        width: 72, // Larger button like in ref (w-16 h-16 = 64px, maybe slightly bigger for mobile touch)
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: '#5D5CDE',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#5D5CDE',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    recordBtnText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#5D5CDE',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+    },
+    sectionContainer: {
+        paddingHorizontal: 24,
+        gap: 16,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        paddingHorizontal: 4,
+        marginBottom: 8,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontFamily: 'serif',
+        fontWeight: '600',
+        color: '#1F2937',
+    },
+    viewJournalBtn: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#C6A87C', // accent-gold
+        textTransform: 'uppercase',
+        letterSpacing: 1.2,
+    },
+    recentList: {
+        gap: 16,
+    },
+    recentCard: {
+        backgroundColor: '#FFFDF8', // Warm ivory card
+        borderRadius: 20,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(195, 180, 155, 0.5)', // Warm border for visibility
+        shadowColor: '#9D8B70',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 3,
+    },
+    recentImagePlaceholder: {
         width: 64,
         height: 64,
-        borderRadius: 32,
-        backgroundColor: 'rgba(198, 168, 124, 0.15)', // accent-gold light
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-    emptyTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#1F2937',
-        marginBottom: 8,
-        fontFamily: 'serif',
-    },
-    emptyDesc: {
-        textAlign: 'center',
-        fontSize: 14,
-        color: '#6B7280',
-        lineHeight: 22,
-    },
-    // Write Mode Styles
-    writeContainer: {
-        flex: 1,
-        backgroundColor: '#FDFBF7',
-        padding: 20,
-    },
-    writeHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 24,
-    },
-    writeTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#111827',
-        fontFamily: 'serif',
-    },
-    iconBtn: {
-        padding: 8,
-    },
-    saveBtn: {
-        backgroundColor: '#5D5CDE', // primary
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-    },
-    saveBtnText: {
-        color: '#FFF',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    input: {
-        flex: 1,
-        fontSize: 18,
-        lineHeight: 28,
-        color: '#1F2937',
-        fontFamily: 'serif',
-        textAlignVertical: 'top',
-    },
-    styleSelector: {
-        paddingTop: 20,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(0,0,0,0.05)',
-        marginBottom: 20, // Avoid keyboard overlap if possible
-    },
-    styleLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#6B7280',
-        marginBottom: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    styleRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    styleChip: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        backgroundColor: '#FFF',
+        borderRadius: 12,
+        overflow: 'hidden',
         borderWidth: 1,
-        elevation: 1,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        borderColor: 'rgba(0,0,0,0.05)',
     },
-    styleChipText: {
-        fontSize: 13,
-        color: '#4B5563',
-        fontWeight: '500',
+    recentInfo: {
+        flex: 1,
+        minWidth: 0,
+    },
+    recentDate: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#C6A87C',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 2,
+    },
+    recentTitle: {
+        fontSize: 16,
+        fontFamily: 'serif',
+        fontWeight: '600',
+        color: '#1F2937',
+        marginBottom: 2,
+    },
+    recentSnippet: {
+        fontSize: 12,
+        fontFamily: 'serif',
+        fontStyle: 'italic',
+        color: '#6B7280',
+    },
+    noRecentText: {
+        textAlign: 'center',
+        padding: 20,
+        color: '#9CA3AF',
+        fontStyle: 'italic',
+        fontFamily: 'serif',
     },
 });

@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, TouchableOpacity, StyleSheet, Platform, Text } from 'react-native';
-import { Home, Plus, BookOpen, User, Sparkles } from 'lucide-react-native';
+import { Home, Plus, BookOpen, User, Image as ImageIcon } from 'lucide-react-native';
 
 const CustomTabBarButton = ({ children, onPress }: any) => (
     <TouchableOpacity
@@ -53,19 +53,19 @@ export default function TabLayout() {
                     tabBarIcon: ({ focused }) => (
                         <View style={styles.tabItem}>
                             <Home size={24} color={focused ? '#5D5CDE' : '#9CA3AF'} />
-                            <Text style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Home</Text>
+                            <Text numberOfLines={1} style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Home</Text>
                         </View>
                     ),
                 }}
             />
             <Tabs.Screen
-                name="gallery"
+                name="journal"
                 options={{
                     title: 'Journal',
                     tabBarIcon: ({ focused }) => (
                         <View style={styles.tabItem}>
                             <BookOpen size={24} color={focused ? '#5D5CDE' : '#9CA3AF'} />
-                            <Text style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Journal</Text>
+                            <Text numberOfLines={1} style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Journal</Text>
                         </View>
                     ),
                 }}
@@ -86,18 +86,18 @@ export default function TabLayout() {
             />
 
             <Tabs.Screen
-                name="insights" // Placeholder, redirect or stub
+                name="gallery"
                 options={{
-                    title: 'Insights',
+                    title: 'Gallery',
                     tabBarIcon: ({ focused }) => (
                         <View style={styles.tabItem}>
-                            <Sparkles size={24} color={focused ? '#5D5CDE' : '#9CA3AF'} />
-                            <Text style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Insights</Text>
+                            <ImageIcon size={24} color={focused ? '#5D5CDE' : '#9CA3AF'} />
+                            <Text numberOfLines={1} style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Gallery</Text>
                         </View>
                     ),
                 }}
-                redirect={true} // For now
             />
+
             <Tabs.Screen
                 name="profile"
                 options={{
@@ -105,9 +105,17 @@ export default function TabLayout() {
                     tabBarIcon: ({ focused }) => (
                         <View style={styles.tabItem}>
                             <User size={24} color={focused ? '#5D5CDE' : '#9CA3AF'} />
-                            <Text style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Profile</Text>
+                            <Text numberOfLines={1} style={[styles.tabLabel, { color: focused ? '#5D5CDE' : '#9CA3AF' }]}>Profile</Text>
                         </View>
                     ),
+                }}
+            />
+
+            {/* Hidden or removed tabs */}
+            <Tabs.Screen
+                name="insights"
+                options={{
+                    href: null, // Hide from tab bar
                 }}
             />
         </Tabs>
@@ -128,10 +136,13 @@ const styles = StyleSheet.create({
     tabItem: {
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 2,
+        gap: 4,
+        width: 60, // Force width to prevent wrapping
     },
     tabLabel: {
         fontSize: 10,
         fontWeight: '500',
+        textAlign: 'center',
+        width: '100%',
     }
 });
