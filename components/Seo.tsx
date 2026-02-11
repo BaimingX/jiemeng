@@ -20,7 +20,9 @@ const DEFAULT_KEYWORDS = 'dream interpretation, dream meaning, dream dictionary,
 
 function normalizePath(path?: string) {
     if (!path) return '/';
-    return path.startsWith('/') ? path : `/${path}`;
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    if (normalized === '/') return '/';
+    return normalized.endsWith('/') ? normalized : `${normalized}/`;
 }
 
 function setMeta(attr: 'name' | 'property', key: string, content: string) {

@@ -10,6 +10,7 @@ export const staticRoutes = [
     '/privacy',
     '/terms',
     '/faq',
+    '/dream-interpretation',
     '/dream-meaning',
     '/markets',
     '/feedback'

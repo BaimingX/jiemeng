@@ -10,10 +10,11 @@ import {
     KeyboardAvoidingView,
     Platform,
     Dimensions,
-    Animated
+    Animated,
+    ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Brain, Palette, Archive, ChevronRight } from 'lucide-react-native';
+import { Brain, Palette, Archive, ChevronRight, Plus, X } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { addJournalEntry } from '../../lib/dreamJournal';
@@ -28,6 +29,8 @@ export default function CreateScreen() {
     const [dreamTitle, setDreamTitle] = useState('');
     const [dreamText, setDreamText] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [tags, setTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
 
     // Animation values - larger offset for more dramatic effect
     const notebookAnim = useRef(new Animated.Value(300)).current;
@@ -103,6 +106,18 @@ export default function CreateScreen() {
         const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' };
         const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         return `${date.toLocaleDateString('en-US', options)} • ${time}`;
+    };
+
+    const addTag = () => {
+        const trimmed = tagInput.trim();
+        if (trimmed && !tags.includes(trimmed) && tags.length < 10) {
+            setTags([...tags, trimmed]);
+            setTagInput('');
+        }
+    };
+
+    const removeTag = (tag: string) => {
+        setTags(tags.filter(t => t !== tag));
     };
 
     const handleAction = async (action: 'interpret' | 'visualize' | 'archive') => {
@@ -211,6 +226,55 @@ export default function CreateScreen() {
                             onChangeText={setDreamText}
                             textAlignVertical="top"
                         />
+                    </View>
+
+                    {/* Tags Section */}
+                    <View style={styles.tagsSection}>
+                        <View style={styles.tagInputRow}>
+                            <TextInput
+                                style={styles.tagTextInput}
+                                placeholder="Add a tag, e.g. flying, lucid..."
+                                placeholderTextColor="#B8B8B8"
+                                value={tagInput}
+                                onChangeText={setTagInput}
+                                onSubmitEditing={addTag}
+                                returnKeyType="done"
+                                maxLength={20}
+                            />
+                            <TouchableOpacity
+                                style={[
+                                    styles.tagAddButton,
+                                    !tagInput.trim() && styles.tagAddButtonDisabled
+                                ]}
+                                onPress={addTag}
+                                disabled={!tagInput.trim()}
+                            >
+                                <Plus size={16} color={tagInput.trim() ? '#FFF' : '#CCC'} />
+                            </TouchableOpacity>
+                        </View>
+                        {tags.length > 0 && (
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.tagsList}
+                                contentContainerStyle={styles.tagsListContent}
+                            >
+                                {tags.map((tag) => (
+                                    <View key={tag} style={styles.tagChip}>
+                                        <Text style={styles.tagChipText}>{tag}</Text>
+                                        <TouchableOpacity
+                                            onPress={() => removeTag(tag)}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            <X size={12} color="#9CA3AF" />
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        )}
+                        {tags.length === 0 && (
+                            <Text style={styles.tagHint}>Tags help you find dreams later ✨</Text>
+                        )}
                     </View>
 
                     {/* Corner fold effect */}
@@ -323,7 +387,7 @@ const styles = StyleSheet.create({
     notebookCard: {
         backgroundColor: '#FFFCF5',
         borderRadius: 20,
-        height: SCREEN_HEIGHT * 0.42,
+        height: SCREEN_HEIGHT * 0.46,
         shadowColor: '#6B5D4D',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.15,
@@ -342,7 +406,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontFamily: 'serif',
         fontStyle: 'italic',
-        color: '#9CA3AF',
+        color: '#1F2937',
     },
     titleInput: {
         paddingHorizontal: 20,
@@ -385,6 +449,70 @@ const styles = StyleSheet.create({
         height: 28,
         backgroundColor: 'rgba(200, 185, 160, 0.12)',
         borderTopLeftRadius: 14,
+    },
+
+    // Tags Section Styles
+    tagsSection: {
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+    },
+    tagInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 8,
+    },
+    tagTextInput: {
+        flex: 1,
+        fontSize: 13,
+        color: '#374151',
+        fontFamily: 'serif',
+        paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+        paddingHorizontal: 12,
+        backgroundColor: 'rgba(200, 185, 160, 0.1)',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(200, 185, 160, 0.3)',
+    },
+    tagAddButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#5D5CDE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tagAddButtonDisabled: {
+        backgroundColor: 'rgba(200, 185, 160, 0.2)',
+    },
+    tagsList: {
+        marginTop: 8,
+    },
+    tagsListContent: {
+        gap: 6,
+    },
+    tagChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(93, 92, 222, 0.08)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(93, 92, 222, 0.15)',
+    },
+    tagChipText: {
+        fontSize: 12,
+        color: '#5D5CDE',
+        fontFamily: 'serif',
+    },
+    tagHint: {
+        fontSize: 11,
+        color: '#B8B8B8',
+        fontStyle: 'italic',
+        marginTop: 6,
+        textAlign: 'center',
     },
 
     // Action Section Styles

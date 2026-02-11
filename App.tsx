@@ -12,6 +12,7 @@ import PrivacyPolicyPage from './components/PrivacyPolicyPage';
 import TermsPage from './components/TermsPage';
 import DreamMeaningIndexPage from './components/DreamMeaningIndexPage';
 import DreamTopicPage from './components/DreamTopicPage';
+import DreamInterpretationGuidePage from './components/DreamInterpretationGuidePage';
 import MarketsIndexPage from './components/MarketsIndexPage';
 import MarketPage from './components/MarketPage';
 import AuthCallback from './components/AuthCallback';
@@ -58,6 +59,7 @@ function App() {
         <Route path="/terms" element={<TermsPage language={language} />} />
         <Route path="/dream-meaning" element={<DreamMeaningIndexPage language={language} />} />
         <Route path="/dream-meaning/:slug" element={<DreamTopicPage language={language} />} />
+        <Route path="/dream-interpretation" element={<DreamInterpretationGuidePage language={language} />} />
         <Route path="/markets" element={<MarketsIndexPage language={language} />} />
         <Route path="/markets/:slug" element={<MarketPage language={language} />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
@@ -67,4 +69,3 @@ function App() {
 }
 
 export default App;
-

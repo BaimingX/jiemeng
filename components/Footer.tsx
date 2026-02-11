@@ -64,6 +64,11 @@ const Footer: React.FC<FooterProps> = ({ language }) => {
                                 </Link>
                             </li>
                             <li>
+                                <Link to="/dream-interpretation" className="text-slate-400 hover:text-indigo-400 text-sm transition-colors flex items-center">
+                                    {isEn ? "Dream Interpretation Guide" : "梦境解析指南"}
+                                </Link>
+                            </li>
+                            <li>
                                 <Link to="/gallery" className="text-slate-400 hover:text-indigo-400 text-sm transition-colors flex items-center">
                                     {isEn ? "Dream Gallery" : "梦境画廊"}
                                 </Link>
@@ -143,3 +148,5 @@ const Footer: React.FC<FooterProps> = ({ language }) => {
 };
 
 export default Footer;
+
+

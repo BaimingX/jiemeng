@@ -10,6 +10,7 @@ type SitemapMeta = {
 const routeMeta: Record<string, SitemapMeta> = {
     '/': { changefreq: 'weekly', priority: 1.0 },
     '/gallery': { changefreq: 'weekly', priority: 0.8 },
+    '/dream-interpretation': { changefreq: 'weekly', priority: 0.7 },
     '/dream-meaning': { changefreq: 'weekly', priority: 0.7 },
     '/markets': { changefreq: 'monthly', priority: 0.6 },
     '/subscribe': { changefreq: 'monthly', priority: 0.6 },
@@ -23,6 +24,10 @@ const defaultMeta: SitemapMeta = { changefreq: 'monthly', priority: 0.6 };
 const marketMeta: SitemapMeta = { changefreq: 'monthly', priority: 0.5 };
 
 const lastmod = new Date().toISOString().slice(0, 10);
+const withTrailingSlash = (route: string) => {
+    if (route === '/') return '/';
+    return `${route.replace(/\/$/, '')}/`;
+};
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
@@ -30,7 +35,7 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
         .map((route) => {
             const meta = routeMeta[route]
                 ?? (route.startsWith('/markets/') ? marketMeta : defaultMeta);
-            const loc = route === '/' ? `${SITE_URL}/` : `${SITE_URL}${route}`;
+            const loc = `${SITE_URL}${withTrailingSlash(route)}`;
             return `  <url>\n` +
                 `    <loc>${loc}</loc>\n` +
                 `    <lastmod>${lastmod}</lastmod>\n` +

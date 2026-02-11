@@ -71,6 +71,31 @@ const DreamMeaningIndexPage: React.FC<DreamMeaningIndexPageProps> = ({ language 
                     ))}
                 </div>
 
+                <div className="mt-10 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl">
+                    <h2 className="text-lg font-semibold text-white mb-3">
+                        {isZh ? '梦境解析指南' : 'Dream interpretation guide'}
+                    </h2>
+                    <p className="text-sm text-slate-400 leading-relaxed">
+                        {isZh
+                            ? '了解如何从情绪、符号和现实情境出发解读梦境，并建立持续的梦境记录习惯。'
+                            : 'Learn a simple framework for interpreting dreams through emotion, symbols, and real-life context.'}
+                    </p>
+                    <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                        <Link
+                            to="/dream-interpretation"
+                            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
+                        >
+                            {isZh ? '阅读指南' : 'Read the guide'}
+                        </Link>
+                        <Link
+                            to="/faq"
+                            className="px-5 py-2.5 rounded-xl border border-indigo-500/30 text-indigo-200 text-sm font-semibold hover:bg-indigo-500/10 transition-colors"
+                        >
+                            {isZh ? '梦境 FAQ' : 'Dream FAQ'}
+                        </Link>
+                    </div>
+                </div>
+
                 <div className="mt-12 flex flex-col md:flex-row items-center justify-center gap-4">
                     <Link
                         to="/faq"

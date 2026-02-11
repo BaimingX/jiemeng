@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Globe, LogIn, User as UserIcon, BookOpen, Map as MapIcon, Image as ImageIcon, Home, FileText, Download, LogOut, ChevronDown, User, Crown, CreditCard, CloudDownload, Loader2 } from 'lucide-react';
+import { Globe, LogIn, User as UserIcon, BookOpen, Map as MapIcon, Image as ImageIcon, Home, FileText, LogOut, ChevronDown, User, Crown, CreditCard, CloudDownload, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Language } from '../types';
 import { restoreFromSupabase } from '../services/dreamDB';
@@ -28,13 +28,15 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
         message: '',
         type: 'info'
     });
+    const normalizePath = (path: string) => (path === '/' ? '/' : path.replace(/\/$/, ''));
+
 
     // Public Navigation (Center)
     const navItems = [
         { label: isEn ? 'Home' : '首页', path: '/', icon: <Home size={16} /> },
+        { label: isEn ? 'Dream Meanings' : '梦境含义', path: '/dream-meaning', icon: <BookOpen size={16} /> },
+        { label: isEn ? 'Dream Guide' : '梦境指南', path: '/dream-interpretation', icon: <FileText size={16} /> },
         { label: isEn ? 'Gallery' : '梦境图廊', path: '/gallery', icon: <ImageIcon size={16} /> },
-        { label: isEn ? 'Blog' : '博客', path: '#', icon: <FileText size={16} />, isDisabled: true },
-        { label: isEn ? 'App' : 'App', path: '#', icon: <Download size={16} />, isDisabled: true },
     ];
 
     // User Menu Items (Dropdown)
@@ -141,7 +143,7 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                     {/* Center Navigation - Public */}
                     <nav className="hidden md:flex items-center gap-1 absolute left-1/2 transform -translate-x-1/2">
                         {navItems.map((item) => {
-                            const isActive = location.pathname === item.path;
+                            const isActive = normalizePath(location.pathname) === normalizePath(item.path);
                             return (
                                 <button
                                     key={item.label}
@@ -354,3 +356,6 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
 };
 
 export default Topbar;
+
+
+
