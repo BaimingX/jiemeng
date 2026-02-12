@@ -2,6 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import express from 'express';
 import puppeteer from 'puppeteer';
+import { execFileSync } from 'node:child_process';
 import { allSeoRoutes } from './seoRoutes';
 
 const distDir = path.resolve('dist');
@@ -19,7 +20,22 @@ const server = await new Promise<import('node:http').Server>((resolve) => {
 });
 
 const browser = await puppeteer.launch({
-    headless: 'new'
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+}).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes('Could not find Chrome')) {
+        throw error;
+    }
+
+    console.warn('Chrome not found for Puppeteer, attempting to install...');
+    const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    execFileSync(npxCmd, ['puppeteer', 'browsers', 'install', 'chrome'], { stdio: 'inherit' });
+
+    return puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
 });
 
 try {
