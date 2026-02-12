@@ -11,8 +11,12 @@ export const getDeviceId = async () => {
     const cached = await AsyncStorage.getItem(DEVICE_ID_KEY);
 
     let hardwareId: string | null = null;
-    if (Platform.OS === 'android' && Application.androidId) {
-        hardwareId = Application.androidId;
+    if (Platform.OS === 'android') {
+        try {
+            hardwareId = await Application.getAndroidId();
+        } catch {
+            hardwareId = null;
+        }
     }
 
     if (!hardwareId && Platform.OS === 'ios') {
