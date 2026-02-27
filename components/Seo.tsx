@@ -54,13 +54,7 @@ function addLink(rel: string, href: string, attrs: Record<string, string> = {}) 
     document.head.appendChild(link);
 }
 
-function addHreflang(finalPath: string) {
-    const enUrl = `${BASE_URL}${finalPath}`;
-    const zhUrl = `${BASE_URL}${finalPath}`;
-    addLink('alternate', enUrl, { hreflang: 'en' });
-    addLink('alternate', zhUrl, { hreflang: 'zh' });
-    addLink('alternate', enUrl, { hreflang: 'x-default' });
-}
+
 
 const Seo: React.FC<SeoProps> = ({
     title,
@@ -106,7 +100,7 @@ const Seo: React.FC<SeoProps> = ({
 
         removeSeoLinks();
         addLink('canonical', finalUrl);
-        addHreflang(finalPath);
+
 
         const jsonLd = {
             '@context': 'https://schema.org',

@@ -1,2 +1,3 @@
-# SPA fallback — prerendered HTML files take priority over this rule.
-/* /index.html 200
+# Unknown paths should return a true 404 instead of rendering the homepage.
+# All known routes are prerendered as static HTML files, which Netlify serves before this rule.
+/* /404.html 404
