@@ -30,6 +30,7 @@ const MarketsIndexPage: React.FC<MarketsIndexPageProps> = ({ language }) => {
                 path="/markets"
                 lang={language}
                 keywords={seoKeywords}
+                noIndex={true}
             />
             <div className="absolute top-0 left-0 w-full h-[420px] bg-gradient-to-b from-indigo-900/10 to-transparent pointer-events-none" />
             <div className="absolute top-[10%] left-[6%] w-64 h-64 bg-purple-500/10 rounded-full blur-[110px] pointer-events-none" />

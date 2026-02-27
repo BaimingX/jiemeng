@@ -54,6 +54,7 @@ const FeedbackPage: React.FC<FeedbackPageProps> = ({ language }) => {
                 description={seoDescription}
                 path="/feedback"
                 lang={language}
+                noIndex={true}
             />
             {/* Background Decorations */}
             <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-900/10 to-transparent pointer-events-none" />

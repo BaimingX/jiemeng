@@ -1,10 +1,7 @@
 # Oneiro AI
 
 ## Summary
-Oneiro AI is an AI-powered dream interpretation and dream journal app for dream meaning, dream symbols, and lucid dreaming insights.
-
-## Keywords
-dream interpretation, dream meaning, dream dictionary, dream analysis, dream symbols, dream interpretation app, dream journal app, AI dream analyzer, AI dream interpretation, lucid dreaming, recurring dreams, teeth falling out dream meaning, snake dream meaning, dream about my ex
+Oneiro AI is an AI-powered dream interpretation and dream journaling app focused on practical reflection and pattern tracking.
 
 ## Languages
 English, Chinese
@@ -16,18 +13,13 @@ English, Chinese
 - https://oneiroai.com/privacy
 - https://oneiroai.com/terms
 - https://oneiroai.com/faq
+- https://oneiroai.com/about
 - https://oneiroai.com/dream-meaning
-- https://oneiroai.com/markets
-- https://oneiroai.com/markets/us
-- https://oneiroai.com/markets/uk
-- https://oneiroai.com/markets/ca
-- https://oneiroai.com/markets/au
-- https://oneiroai.com/markets/in
-- https://oneiroai.com/markets/ph
-- https://oneiroai.com/markets/sg
-- https://oneiroai.com/markets/ng
-- https://oneiroai.com/markets/za
-- https://oneiroai.com/feedback
+- https://oneiroai.com/dream-meaning/cluster/anxiety
+- https://oneiroai.com/dream-meaning/cluster/relationship
+- https://oneiroai.com/dream-meaning/cluster/nightmare
+- https://oneiroai.com/dream-meaning/cluster/growth
+- https://oneiroai.com/dream-interpretation
 
 ## Contact
 hello@oneiroai.com

@@ -1,1 +1,2 @@
-/* /index.html 200
+# Unknown paths should return a true 404 instead of rendering the homepage.
+/* /404.html 404

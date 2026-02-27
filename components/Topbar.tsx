@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Globe, LogIn, User as UserIcon, BookOpen, Map as MapIcon, Image as ImageIcon, Home, FileText, LogOut, ChevronDown, User, Crown, CreditCard, CloudDownload, Loader2 } from 'lucide-react';
+import { LogIn, BookOpen, Map as MapIcon, Image as ImageIcon, Home, FileText, LogOut, ChevronDown, User, Crown, CreditCard, CloudDownload, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Language } from '../types';
-import { restoreFromSupabase } from '../services/dreamDB';
-import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './ConfirmModal';
 import Toast, { ToastType } from './Toast';
 
@@ -17,7 +15,7 @@ interface TopbarProps {
 const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, profile, billingStatus, signOut, openCheckout } = useAuth();
+    const { user, profile, billingStatus, signOut } = useAuth();
     const isEn = language === 'en';
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -34,9 +32,9 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
     // Public Navigation (Center)
     const navItems = [
         { label: isEn ? 'Home' : '首页', path: '/', icon: <Home size={16} /> },
-        { label: isEn ? 'Dream Meanings' : '梦境含义', path: '/dream-meaning', icon: <BookOpen size={16} /> },
-        { label: isEn ? 'Dream Guide' : '梦境指南', path: '/dream-interpretation', icon: <FileText size={16} /> },
-        { label: isEn ? 'Gallery' : '梦境图廊', path: '/gallery', icon: <ImageIcon size={16} /> },
+        { label: isEn ? 'Interpretation' : '梦境解析', path: '/dream-meaning', icon: <BookOpen size={16} /> },
+        { label: isEn ? 'Guide' : '指南', path: '/dream-interpretation', icon: <FileText size={16} /> },
+        { label: isEn ? 'Gallery' : '梦境画廊', path: '/gallery', icon: <ImageIcon size={16} /> },
     ];
 
     // User Menu Items (Dropdown)
@@ -75,6 +73,7 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
         setShowSyncConfirm(false);
         setIsSyncing(true);
         try {
+            const { restoreFromSupabase } = await import('../services/dreamDB');
             await restoreFromSupabase();
             showToast(isEn ? 'Sync complete' : '同步完成', 'success');
         } catch (e) {
@@ -133,6 +132,9 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                                 src="/logo.svg"
                                 alt="Oneiro AI"
                                 className="relative w-9 h-9"
+                                width={36}
+                                height={36}
+                                decoding="async"
                             />
                         </div>
                         <span className="font-serif text-lg tracking-wide text-indigo-50 group-hover:text-white transition-colors hidden sm:block">
@@ -151,7 +153,7 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                                     disabled={item.isDisabled}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 relative group
                                         ${isActive
-                                            ? 'text-white'
+                                            ? 'text-white bg-white/10 border border-white/5'
                                             : item.isDisabled
                                                 ? 'text-slate-600 cursor-not-allowed'
                                                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -159,14 +161,6 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                                 >
                                     {item.icon}
                                     <span>{item.label}</span>
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="nav-pill"
-                                            className="absolute inset-0 bg-white/10 rounded-full border border-white/5"
-                                            initial={false}
-                                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                        />
-                                    )}
                                     {item.isDisabled && (
                                         <span className="absolute -top-1 -right-1 w-2 h-2 bg-slate-700/50 rounded-full" />
                                     )}
@@ -218,15 +212,8 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                                 </button>
 
                                 {/* Dropdown Menu */}
-                                <AnimatePresence>
-                                    {isDropdownOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="absolute right-0 top-full mt-3 w-56 bg-[#131926] border border-white/10 rounded-2xl shadow-xl overflow-hidden backdrop-blur-3xl z-50"
-                                        >
+                                {isDropdownOpen && (
+                                    <div className="absolute right-0 top-full mt-3 w-56 bg-[#131926] border border-white/10 rounded-2xl shadow-xl overflow-hidden backdrop-blur-3xl z-50">
                                             {/* Billing Status Section */}
                                             <div className="p-4 border-b border-white/5 bg-white/5">
                                                 {billingStatus?.access === 'lifetime' ? (
@@ -335,9 +322,8 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
                                                     {isEn ? 'Logout' : '退出登录'}
                                                 </button>
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <button
@@ -356,6 +342,7 @@ const Topbar: React.FC<TopbarProps> = ({ language, onToggleLanguage, onOpenLogin
 };
 
 export default Topbar;
+
 
 
 

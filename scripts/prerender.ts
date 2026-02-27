@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import express from 'express';
 import puppeteer from 'puppeteer';
 import { execFileSync } from 'node:child_process';
-import { allSeoRoutes } from './seoRoutes';
+import { allPrerenderRoutes } from './seoRoutes';
 
 const distDir = path.resolve('dist');
 const port = 4173;
@@ -42,7 +42,7 @@ try {
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(60000);
 
-    for (const route of allSeoRoutes) {
+    for (const route of allPrerenderRoutes) {
         const url = `http://localhost:${port}${route}`;
         console.log(`Prerendering ${url}`);
 
@@ -63,4 +63,4 @@ try {
     await new Promise((resolve) => server.close(resolve));
 }
 
-console.log(`Prerender complete: ${allSeoRoutes.length} routes`);
+console.log(`Prerender complete: ${allPrerenderRoutes.length} routes`);

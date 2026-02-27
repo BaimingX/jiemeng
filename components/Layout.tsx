@@ -1,10 +1,10 @@
-import React, { ReactNode, useEffect, useRef } from 'react';
+import React, { ReactNode, Suspense, lazy, useEffect, useRef } from 'react';
 import Topbar from './Topbar';
 import Footer from './Footer';
 import { Language } from '../types';
-import LoginPopup from './LoginPopup';
 import { useAuth } from '../context/AuthContext';
-import { getConversationDates, initDB, restoreFromSupabase } from '../services/dreamDB';
+
+const LoginPopup = lazy(() => import('./LoginPopup'));
 
 interface LayoutProps {
     children: ReactNode;
@@ -22,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children, language, onToggleLanguage })
 
         const restoreIfEmpty = async () => {
             try {
+                const { initDB, getConversationDates, restoreFromSupabase } = await import('../services/dreamDB');
                 await initDB();
                 const dates = await getConversationDates();
                 if (dates.length === 0) {
@@ -50,11 +51,15 @@ const Layout: React.FC<LayoutProps> = ({ children, language, onToggleLanguage })
 
             <Footer language={language} />
 
-            <LoginPopup
-                isOpen={showLoginModal}
-                onClose={() => setShowLoginModal(false)}
-                language={language}
-            />
+            {showLoginModal && (
+                <Suspense fallback={null}>
+                    <LoginPopup
+                        isOpen={showLoginModal}
+                        onClose={() => setShowLoginModal(false)}
+                        language={language}
+                    />
+                </Suspense>
+            )}
         </div>
     );
 };

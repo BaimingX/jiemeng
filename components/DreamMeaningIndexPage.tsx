@@ -1,9 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ArrowRight } from 'lucide-react';
+import { BookOpen, ArrowRight, Layers } from 'lucide-react';
 import { Language } from '../types';
 import Seo from './Seo';
 import { dreamTopics } from '../data/dreamTopics';
+import { dreamClusters } from '../data/dreamClusters';
 
 interface DreamMeaningIndexPageProps {
     language: Language;
@@ -13,14 +14,11 @@ const DreamMeaningIndexPage: React.FC<DreamMeaningIndexPageProps> = ({ language 
     const isZh = language === 'zh';
 
     const title = isZh
-        ? 'Oneiro AI 梦境含义词典 | 梦境符号与梦境解析'
-        : 'Dream Meaning Dictionary | Dream Symbols by Oneiro AI';
+        ? 'Oneiro AI 梦境含义词典 | 梦境符号与主题集合'
+        : 'Dream Meaning Dictionary | Symbols and Topic Clusters - Oneiro AI';
     const description = isZh
-        ? '浏览常见梦境含义与梦境符号词典，包括牙齿脱落、蛇梦、飞行梦、坠落梦等。'
-        : 'Explore a modern dream meaning dictionary of dream symbols like teeth falling out, snakes, flying, and falling.';
-    const seoKeywords = isZh
-        ? '梦境含义, 梦境词典, 梦境符号, 梦境解析, 牙齿脱落, 蛇之梦, 飞行梦, 坠落梦, 被追逐, 梦到前任'
-        : 'dream meaning, dream dictionary, dream symbols, dream interpretation, teeth falling out dream meaning, snake dream meaning, flying dream symbolism, falling dream meaning, being chased dream, dream about my ex';
+        ? '浏览梦境词典与主题集合：焦虑、关系、噩梦、成长。按结构化路径理解梦境。'
+        : 'Explore dream meanings by symbol and by cluster: anxiety, relationship, nightmare, and growth patterns.';
 
     return (
         <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8 bg-[#0B0F19] relative overflow-hidden">
@@ -29,7 +27,6 @@ const DreamMeaningIndexPage: React.FC<DreamMeaningIndexPageProps> = ({ language 
                 description={description}
                 path="/dream-meaning"
                 lang={language}
-                keywords={seoKeywords}
             />
             <div className="absolute top-0 left-0 w-full h-[420px] bg-gradient-to-b from-indigo-900/10 to-transparent pointer-events-none" />
             <div className="absolute top-[10%] left-[6%] w-64 h-64 bg-purple-500/10 rounded-full blur-[110px] pointer-events-none" />
@@ -45,40 +42,77 @@ const DreamMeaningIndexPage: React.FC<DreamMeaningIndexPageProps> = ({ language 
                     </h1>
                     <p className="text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
                         {isZh
-                            ? '系统化浏览常见梦境符号与解析，帮助你建立个人梦境词典。'
-                            : 'Browse common dream symbols and meanings to build your personal dream dictionary.'}
+                            ? '先按主题集合筛选，再进入单个词条深读，建立长期可复用的梦境解读体系。'
+                            : 'Start from cluster pages, then drill into symbol pages to build a practical long-term interpretation workflow.'}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-3">
+                        {isZh
+                            ? `${dreamTopics.length} 个词条，按焦虑 / 关系 / 噩梦 / 成长分组。`
+                            : `${dreamTopics.length} topics grouped by anxiety, relationship, nightmare, and growth intent.`}
                     </p>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {dreamTopics.map((topic) => (
-                        <Link
-                            key={topic.slug}
-                            to={`/dream-meaning/${topic.slug}`}
-                            className="group bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl hover:border-indigo-500/40 transition-colors"
-                        >
-                            <h2 className="text-lg font-semibold text-white mb-2">
-                                {isZh ? topic.titleZh : topic.titleEn}
-                            </h2>
-                            <p className="text-sm text-slate-400 leading-relaxed">
-                                {isZh ? topic.summaryZh : topic.summaryEn}
-                            </p>
-                            <div className="mt-4 flex items-center gap-2 text-xs text-indigo-300">
-                                <span>{isZh ? '查看解析' : 'View meaning'}</span>
-                                <ArrowRight className="w-4 h-4" />
-                            </div>
-                        </Link>
-                    ))}
-                </div>
+                <section className="mb-10">
+                    <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-indigo-300" />
+                        {isZh ? '主题集合（Cluster Pages）' : 'Cluster Pages'}
+                    </h2>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        {dreamClusters.map((cluster) => (
+                            <Link
+                                key={cluster.slug}
+                                to={`/dream-meaning/cluster/${cluster.slug}`}
+                                className="group bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-2xl hover:border-indigo-500/40 transition-colors"
+                            >
+                                <h3 className="text-base font-semibold text-white mb-2">
+                                    {isZh ? cluster.titleZh : cluster.titleEn}
+                                </h3>
+                                <p className="text-xs text-slate-400 leading-relaxed">
+                                    {isZh ? cluster.descriptionZh : cluster.descriptionEn}
+                                </p>
+                                <div className="mt-3 inline-flex items-center gap-2 text-xs text-indigo-300">
+                                    <span>{isZh ? '查看集合' : 'Open cluster'}</span>
+                                    <ArrowRight className="w-4 h-4" />
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
 
-                <div className="mt-10 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl">
+                <section>
+                    <h2 className="text-xl font-semibold text-white mb-4">
+                        {isZh ? '梦境词条（A-Z）' : 'Symbol Pages (A-Z)'}
+                    </h2>
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {dreamTopics.map((topic) => (
+                            <Link
+                                key={topic.slug}
+                                to={`/dream-meaning/${topic.slug}`}
+                                className="group bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl hover:border-indigo-500/40 transition-colors"
+                            >
+                                <h3 className="text-lg font-semibold text-white mb-2">
+                                    {isZh ? topic.titleZh : topic.titleEn}
+                                </h3>
+                                <p className="text-sm text-slate-400 leading-relaxed line-clamp-3">
+                                    {isZh ? topic.summaryZh : topic.summaryEn}
+                                </p>
+                                <div className="mt-4 flex items-center gap-2 text-xs text-indigo-300">
+                                    <span>{isZh ? '查看解析' : 'View meaning'}</span>
+                                    <ArrowRight className="w-4 h-4" />
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="mt-10 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl">
                     <h2 className="text-lg font-semibold text-white mb-3">
-                        {isZh ? '梦境解析指南' : 'Dream interpretation guide'}
+                        {isZh ? '下一步阅读建议' : 'Suggested Next Reading'}
                     </h2>
                     <p className="text-sm text-slate-400 leading-relaxed">
                         {isZh
-                            ? '了解如何从情绪、符号和现实情境出发解读梦境，并建立持续的梦境记录习惯。'
-                            : 'Learn a simple framework for interpreting dreams through emotion, symbols, and real-life context.'}
+                            ? '先读梦境解读指南，再进入词条页做“场景-情绪-行动”三步记录。'
+                            : 'Read the interpretation guide first, then use symbol pages with a scenario-emotion-action journaling loop.'}
                     </p>
                     <div className="mt-4 flex flex-col sm:flex-row gap-3">
                         <Link
@@ -94,22 +128,7 @@ const DreamMeaningIndexPage: React.FC<DreamMeaningIndexPageProps> = ({ language 
                             {isZh ? '梦境 FAQ' : 'Dream FAQ'}
                         </Link>
                     </div>
-                </div>
-
-                <div className="mt-12 flex flex-col md:flex-row items-center justify-center gap-4">
-                    <Link
-                        to="/faq"
-                        className="px-6 py-3 rounded-xl border border-indigo-500/30 text-indigo-200 text-sm font-semibold hover:bg-indigo-500/10 transition-colors"
-                    >
-                        {isZh ? '查看梦境 FAQ' : 'Open Dream FAQ'}
-                    </Link>
-                    <Link
-                        to="/"
-                        className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
-                    >
-                        {isZh ? '开始解梦' : 'Start Interpreting'}
-                    </Link>
-                </div>
+                </section>
             </div>
         </div>
     );

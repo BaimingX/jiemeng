@@ -16,7 +16,6 @@ const BASE_URL = 'https://oneiroai.com';
 const DEFAULT_TITLE = 'Oneiro AI | Dream Interpretation & Dream Meaning';
 const DEFAULT_DESCRIPTION = 'Oneiro AI is an AI-powered dream interpretation and dream journal app for dream meaning, dream symbols, and lucid dreaming insights.';
 const DEFAULT_IMAGE = `${BASE_URL}/og.png`;
-const DEFAULT_KEYWORDS = 'dream interpretation, dream meaning, dream dictionary, dream analysis, dream symbols, dream interpretation app, dream journal app, AI dream analyzer, AI dream interpretation, dream interpretation AI, lucid dreaming, recurring dreams, teeth falling out dream meaning, snake dream meaning, dream about my ex';
 
 function normalizePath(path?: string) {
     if (!path) return '/';
@@ -36,9 +35,13 @@ function setMeta(attr: 'name' | 'property', key: string, content: string) {
     element.setAttribute('content', content);
 }
 
+function removeMeta(attr: 'name' | 'property', key: string) {
+    document.head.querySelectorAll(`meta[${attr}="${key}"]`).forEach((el) => el.remove());
+}
+
 function removeSeoLinks() {
     document.head
-        .querySelectorAll('link[rel="canonical"], link[rel="alternate"][hreflang], link[data-seo="true"]')
+        .querySelectorAll('link[rel="canonical"], link[data-seo="true"]')
         .forEach((el) => el.remove());
 }
 
@@ -56,7 +59,6 @@ const Seo: React.FC<SeoProps> = ({
     description,
     path,
     image,
-    keywords,
     noIndex,
     lang,
     ogType,
@@ -66,7 +68,6 @@ const Seo: React.FC<SeoProps> = ({
         const finalTitle = title || DEFAULT_TITLE;
         const finalDescription = description || DEFAULT_DESCRIPTION;
         const finalImage = image || DEFAULT_IMAGE;
-        const finalKeywords = keywords || DEFAULT_KEYWORDS;
         const finalPath = normalizePath(path);
         const finalUrl = `${BASE_URL}${finalPath}`;
         const finalOgType = ogType || 'website';
@@ -77,7 +78,7 @@ const Seo: React.FC<SeoProps> = ({
         }
 
         setMeta('name', 'description', finalDescription);
-        setMeta('name', 'keywords', finalKeywords);
+        removeMeta('name', 'keywords');
         setMeta('name', 'robots', noIndex ? 'noindex,nofollow' : 'index,follow');
         setMeta('property', 'og:title', finalTitle);
         setMeta('property', 'og:description', finalDescription);
@@ -96,9 +97,6 @@ const Seo: React.FC<SeoProps> = ({
 
         removeSeoLinks();
         addLink('canonical', finalUrl);
-        addLink('alternate', finalUrl, { hreflang: 'x-default' });
-        addLink('alternate', finalUrl, { hreflang: 'en' });
-        addLink('alternate', finalUrl, { hreflang: 'zh' });
 
         const jsonLd = {
             '@context': 'https://schema.org',
@@ -127,7 +125,7 @@ const Seo: React.FC<SeoProps> = ({
             document.head.appendChild(script);
         }
         script.textContent = JSON.stringify(jsonLdPayload);
-    }, [title, description, path, image, keywords, noIndex, lang, ogType, structuredData]);
+    }, [title, description, path, image, noIndex, lang, ogType, structuredData]);
 
     return null;
 };

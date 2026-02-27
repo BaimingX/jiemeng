@@ -2,188 +2,350 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://oneiroai.com/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/gallery/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/subscribe/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/about/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/privacy/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/terms/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/faq/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-interpretation/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/</loc>
-    <lastmod>2026-02-12</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://oneiroai.com/dream-meaning/cluster/anxiety/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/feedback/</loc>
-    <lastmod>2026-02-12</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://oneiroai.com/dream-meaning/cluster/relationship/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/cluster/nightmare/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/cluster/growth/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/teeth-falling-out/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/snakes/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/flying/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/falling/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/being-chased/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/ex-partner/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/pregnancy/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/water/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/death/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/spiders/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/house/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://oneiroai.com/dream-meaning/naked-in-public/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/us/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/school-exam/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/uk/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/baby/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/ca/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/dog/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/au/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/cat/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/in/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/car-crash/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/ph/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/missing-flight/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/sg/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/wedding/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/ng/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/money/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oneiroai.com/markets/za/</loc>
-    <lastmod>2026-02-12</lastmod>
+    <loc>https://oneiroai.com/dream-meaning/fire/</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/ocean-waves/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/ghost/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/cheating/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/running-late/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/lost-phone/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/blood/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/tornado/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/earthquake/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/drowning/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/unable-to-run/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/hair-loss/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/job-interview/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/public-speaking/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/lost-child/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/burglary/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/birds/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/train/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/elevator/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/winning-lottery/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/breakup/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/moving-house/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/unable-to-find-classroom/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/phone-battery-dead/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://oneiroai.com/dream-meaning/driving-no-brakes/</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>
