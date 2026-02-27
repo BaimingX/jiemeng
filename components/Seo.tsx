@@ -54,11 +54,20 @@ function addLink(rel: string, href: string, attrs: Record<string, string> = {}) 
     document.head.appendChild(link);
 }
 
+function addHreflang(finalPath: string) {
+    const enUrl = `${BASE_URL}${finalPath}`;
+    const zhUrl = `${BASE_URL}${finalPath}`;
+    addLink('alternate', enUrl, { hreflang: 'en' });
+    addLink('alternate', zhUrl, { hreflang: 'zh' });
+    addLink('alternate', enUrl, { hreflang: 'x-default' });
+}
+
 const Seo: React.FC<SeoProps> = ({
     title,
     description,
     path,
     image,
+    keywords,
     noIndex,
     lang,
     ogType,
@@ -73,12 +82,14 @@ const Seo: React.FC<SeoProps> = ({
         const finalOgType = ogType || 'website';
 
         document.title = finalTitle;
-        if (lang) {
-            document.documentElement.lang = lang;
-        }
+        document.documentElement.lang = lang || 'en';
 
         setMeta('name', 'description', finalDescription);
-        removeMeta('name', 'keywords');
+        if (keywords) {
+            setMeta('name', 'keywords', keywords);
+        } else {
+            removeMeta('name', 'keywords');
+        }
         setMeta('name', 'robots', noIndex ? 'noindex,nofollow' : 'index,follow');
         setMeta('property', 'og:title', finalTitle);
         setMeta('property', 'og:description', finalDescription);
@@ -90,13 +101,12 @@ const Seo: React.FC<SeoProps> = ({
         setMeta('name', 'twitter:description', finalDescription);
         setMeta('name', 'twitter:image', finalImage);
         setMeta('name', 'twitter:card', 'summary_large_image');
-        if (lang) {
-            const ogLocale = lang === 'zh' ? 'zh_CN' : 'en_US';
-            setMeta('property', 'og:locale', ogLocale);
-        }
+        const ogLocale = (lang || 'en') === 'zh' ? 'zh_CN' : 'en_US';
+        setMeta('property', 'og:locale', ogLocale);
 
         removeSeoLinks();
         addLink('canonical', finalUrl);
+        addHreflang(finalPath);
 
         const jsonLd = {
             '@context': 'https://schema.org',
@@ -125,7 +135,7 @@ const Seo: React.FC<SeoProps> = ({
             document.head.appendChild(script);
         }
         script.textContent = JSON.stringify(jsonLdPayload);
-    }, [title, description, path, image, noIndex, lang, ogType, structuredData]);
+    }, [title, description, path, image, keywords, noIndex, lang, ogType, structuredData]);
 
     return null;
 };

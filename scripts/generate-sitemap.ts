@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { indexableRoutes, SITE_URL } from './seoRoutes';
+import { indexableRoutes, routeLastmod, SITE_URL } from './seoRoutes';
 
 type SitemapMeta = {
     changefreq: 'daily' | 'weekly' | 'monthly';
@@ -35,9 +35,10 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
                 ? { changefreq: 'weekly', priority: 0.7 as const }
                 : (routeMeta[route] ?? defaultMeta);
             const loc = `${SITE_URL}${withTrailingSlash(route)}`;
+            const routeDate = routeLastmod[route] ?? lastmod;
             return `  <url>\n` +
                 `    <loc>${loc}</loc>\n` +
-                `    <lastmod>${lastmod}</lastmod>\n` +
+                `    <lastmod>${routeDate}</lastmod>\n` +
                 `    <changefreq>${meta.changefreq}</changefreq>\n` +
                 `    <priority>${meta.priority.toFixed(1)}</priority>\n` +
                 `  </url>`;

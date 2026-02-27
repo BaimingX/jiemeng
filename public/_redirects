@@ -1,2 +1,2 @@
-# Unknown paths should return a true 404 instead of rendering the homepage.
-/* /404.html 404
+# SPA fallback — prerendered HTML files take priority over this rule.
+/* /index.html 200

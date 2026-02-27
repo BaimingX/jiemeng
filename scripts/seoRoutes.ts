@@ -26,6 +26,18 @@ export const indexableRoutes = Array.from(new Set([
     ...dreamMeaningRoutes
 ]));
 
+/** Per-route lastmod dates derived from content data. */
+export const routeLastmod: Record<string, string> = {};
+for (const topic of dreamTopics) {
+    routeLastmod[`/dream-meaning/${topic.slug}`] = topic.updatedAt;
+}
+for (const cluster of dreamClusters) {
+    // Cluster pages derive their date from latest topic in the cluster
+    const clusterTopics = dreamTopics.filter((t) => t.cluster === cluster.slug);
+    const latest = clusterTopics.reduce((max, t) => (t.updatedAt > max ? t.updatedAt : max), '');
+    if (latest) routeLastmod[`/dream-meaning/cluster/${cluster.slug}`] = latest;
+}
+
 export const nonIndexableStaticRoutes = [
     '/feedback',
     '/journal',
